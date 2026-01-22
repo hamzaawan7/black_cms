@@ -1,2 +1,7 @@
-*
-!.gitignore
+# Keep media folders
+!media/
+media/*
+!media/.gitkeep
+!tenants/
+tenants/*
+!tenants/.gitkeep
