@@ -146,6 +146,7 @@ Route::prefix('v1')->group(function () {
             // Media Library
             Route::get('/media', [PageBuilderController::class, 'getMediaLibrary']);
             Route::post('/media', [PageBuilderController::class, 'uploadMedia']);
+            Route::post('/media/upload', [PageBuilderController::class, 'uploadMedia']); // Alias for settings page
         });
         
         // Webhooks & Cache Invalidation

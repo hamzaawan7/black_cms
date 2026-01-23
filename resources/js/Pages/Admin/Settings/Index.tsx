@@ -361,11 +361,12 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                             formData.append('file', file);
                                                                             formData.append('folder', 'branding');
                                                                             try {
-                                                                                const response = await fetch('/api/media/upload', {
+                                                                                const response = await fetch('/admin/media/upload', {
                                                                                     method: 'POST',
                                                                                     body: formData,
                                                                                     headers: {
                                                                                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                                                                        'Accept': 'application/json',
                                                                                     },
                                                                                 });
                                                                                 if (response.ok) {
@@ -403,11 +404,12 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                     formData.append('file', file);
                                                                     formData.append('folder', 'branding');
                                                                     try {
-                                                                        const response = await fetch('/api/media/upload', {
+                                                                        const response = await fetch('/admin/media/upload', {
                                                                             method: 'POST',
                                                                             body: formData,
                                                                             headers: {
                                                                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                                                                'Accept': 'application/json',
                                                                             },
                                                                         });
                                                                         if (response.ok) {
@@ -471,11 +473,12 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                             formData.append('file', file);
                                                                             formData.append('folder', 'branding');
                                                                             try {
-                                                                                const response = await fetch('/api/media/upload', {
+                                                                                const response = await fetch('/admin/media/upload', {
                                                                                     method: 'POST',
                                                                                     body: formData,
                                                                                     headers: {
                                                                                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                                                                        'Accept': 'application/json',
                                                                                     },
                                                                                 });
                                                                                 if (response.ok) {
@@ -506,11 +509,12 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                     formData.append('file', file);
                                                                     formData.append('folder', 'branding');
                                                                     try {
-                                                                        const response = await fetch('/api/media/upload', {
+                                                                        const response = await fetch('/admin/media/upload', {
                                                                             method: 'POST',
                                                                             body: formData,
                                                                             headers: {
                                                                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                                                                                'Accept': 'application/json',
                                                                             },
                                                                         });
                                                                         if (response.ok) {

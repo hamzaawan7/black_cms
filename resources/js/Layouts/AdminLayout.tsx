@@ -2,6 +2,7 @@ import { useState, PropsWithChildren, ReactNode } from 'react';
 import { Link, usePage } from '@inertiajs/react';
 import { PageProps } from '@/types';
 import FlashMessages from '@/Components/FlashMessages';
+import { HelpChatbot } from '@/Components/HelpChatbot';
 import {
     LayoutDashboard,
     FileText,
@@ -390,6 +391,9 @@ export default function AdminLayout({
                     </div>
                 </main>
             </div>
+
+            {/* Help Chatbot - Available on all admin pages */}
+            <HelpChatbot />
         </div>
     );
 }
