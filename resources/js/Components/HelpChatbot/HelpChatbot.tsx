@@ -207,7 +207,7 @@ const TopicViewer: React.FC<{
         </button>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(201, 169, 98, 0.1)' }}>
-            <Icon className="w-5 h-5" style={{ color: '#c9a962' }} />
+            <span style={{ color: '#c9a962' }}><Icon className="w-5 h-5" /></span>
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-semibold text-gray-900">{topic.title}</h2>
@@ -399,7 +399,7 @@ const HelpChatbot: React.FC = () => {
                             onClick={() => handleTopicSelect(topic)}
                             className="flex-1 flex items-start gap-3 text-left"
                           >
-                            <Icon className="w-5 h-5 mt-0.5" style={{ color: '#c9a962' }} />
+                            <span className="mt-0.5" style={{ color: '#c9a962' }}><Icon className="w-5 h-5" /></span>
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-gray-900 truncate">{topic.title}</p>
                               <p className="text-sm text-gray-500 truncate">{topic.shortDescription}</p>
@@ -411,7 +411,7 @@ const HelpChatbot: React.FC = () => {
                               className="flex-shrink-0 p-2 rounded-lg hover:bg-gray-200 transition-colors"
                               title={`Go to ${topic.title}`}
                             >
-                              <ExternalLink className="w-4 h-4" style={{ color: '#c9a962' }} />
+                              <span style={{ color: '#c9a962' }}><ExternalLink className="w-4 h-4" /></span>
                             </a>
                           )}
                         </div>
@@ -435,7 +435,7 @@ const HelpChatbot: React.FC = () => {
                           className="flex-1 flex items-center gap-3 p-4 hover:bg-gray-50 transition-colors"
                         >
                           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(201, 169, 98, 0.1)' }}>
-                            <CategoryIcon className="w-4 h-4" style={{ color: '#c9a962' }} />
+                            <span style={{ color: '#c9a962' }}><CategoryIcon className="w-4 h-4" /></span>
                           </div>
                           <span className="flex-1 font-medium text-gray-900 text-left">
                             {category.name}
@@ -455,7 +455,7 @@ const HelpChatbot: React.FC = () => {
                             className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
                             title={`Go to ${category.name}`}
                           >
-                            <ExternalLink className="w-4 h-4" style={{ color: '#c9a962' }} />
+                            <span style={{ color: '#c9a962' }}><ExternalLink className="w-4 h-4" /></span>
                           </a>
                         )}
                       </div>
@@ -486,7 +486,7 @@ const HelpChatbot: React.FC = () => {
                                     className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors"
                                     title={`Go to ${topic.title}`}
                                   >
-                                    <ExternalLink className="w-3.5 h-3.5" style={{ color: '#c9a962' }} />
+                                    <span style={{ color: '#c9a962' }}><ExternalLink className="w-3.5 h-3.5" /></span>
                                   </a>
                                 )}
                               </div>
