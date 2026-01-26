@@ -574,9 +574,18 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                             {activeTab === 'colors' && (
                                 <>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Primary Color
-                                        </label>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Primary Color
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateField('primary_color', '#9a8b7a')}
+                                                className="text-xs text-gray-500 hover:text-[#c9a962] transition-colors"
+                                            >
+                                                Reset to Default
+                                            </button>
+                                        </div>
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="color"
@@ -596,9 +605,18 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Secondary Color
-                                        </label>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Secondary Color
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateField('secondary_color', '#3d3d3d')}
+                                                className="text-xs text-gray-500 hover:text-[#c9a962] transition-colors"
+                                            >
+                                                Reset to Default
+                                            </button>
+                                        </div>
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="color"
@@ -618,9 +636,18 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                         </p>
                                     </div>
                                     <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Background Color
-                                        </label>
+                                        <div className="flex items-center justify-between mb-1">
+                                            <label className="block text-sm font-medium text-gray-700">
+                                                Background Color
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={() => updateField('background_color', '#f5f2eb')}
+                                                className="text-xs text-gray-500 hover:text-[#c9a962] transition-colors"
+                                            >
+                                                Reset to Default
+                                            </button>
+                                        </div>
                                         <div className="flex items-center gap-3">
                                             <input
                                                 type="color"
