@@ -144,7 +144,160 @@ class TenantService
             $this->deploymentService->deployTemplate($tenant, $tenant->activeTemplate);
         }
 
+        // Duplicate content from main tenant (ID: 1) if this is a new tenant
+        $this->duplicateContentFromMainTenant($tenant);
+
         return $tenant->load('activeTemplate');
+    }
+
+    /**
+     * Duplicate all content from main tenant (ID: 1) to a new tenant.
+     * This includes: Settings, Service Categories, Services, Pages, Sections, 
+     * FAQs, Testimonials, Team Members, and Menus.
+     */
+    protected function duplicateContentFromMainTenant(Tenant $newTenant): void
+    {
+        // Get main tenant (ID: 1)
+        $mainTenant = Tenant::find(1);
+        
+        if (!$mainTenant || $newTenant->id === 1) {
+            return; // Don't duplicate if main tenant doesn't exist or if this IS the main tenant
+        }
+
+        try {
+            // Duplicate Settings
+            foreach ($mainTenant->settings()->get() as $setting) {
+                $newTenant->settings()->create([
+                    'group' => $setting->group,
+                    'key' => $setting->key,
+                    'value' => $setting->value,
+                ]);
+            }
+
+            // Duplicate Service Categories first (needed for services)
+            $categoryMapping = [];
+            foreach ($mainTenant->serviceCategories()->get() as $category) {
+                $newCategory = $newTenant->serviceCategories()->create([
+                    'name' => $category->name,
+                    'slug' => $category->slug,
+                    'description' => $category->description,
+                    'image' => $category->image,
+                    'order' => $category->order,
+                    'is_active' => $category->is_active,
+                ]);
+                $categoryMapping[$category->id] = $newCategory->id;
+            }
+
+            // Duplicate Services with category mapping
+            foreach ($mainTenant->services()->get() as $service) {
+                $newTenant->services()->create([
+                    'category_id' => $categoryMapping[$service->category_id] ?? null,
+                    'name' => $service->name,
+                    'slug' => $service->slug,
+                    'description' => $service->description,
+                    'short_description' => $service->short_description,
+                    'headline' => $service->headline,
+                    'content' => $service->content,
+                    'image' => $service->image,
+                    'secondary_image' => $service->secondary_image,
+                    'vial_image' => $service->vial_image,
+                    'pricing' => $service->pricing,
+                    'benefits' => $service->benefits,
+                    'stats' => $service->stats,
+                    'what_is' => $service->what_is,
+                    'get_started_url' => $service->get_started_url,
+                    'is_popular' => $service->is_popular,
+                    'is_published' => $service->is_published,
+                    'is_active' => $service->is_active,
+                    'order' => $service->order,
+                ]);
+            }
+
+            // Duplicate Pages first (needed for sections)
+            $pageMapping = [];
+            foreach ($mainTenant->pages()->get() as $page) {
+                $newPage = $newTenant->pages()->create([
+                    'title' => $page->title,
+                    'slug' => $page->slug,
+                    'meta_title' => $page->meta_title,
+                    'meta_description' => $page->meta_description,
+                    'meta_keywords' => $page->meta_keywords,
+                    'og_image' => $page->og_image,
+                    'content' => $page->content,
+                    'is_published' => $page->is_published,
+                    'order' => $page->order,
+                ]);
+                $pageMapping[$page->id] = $newPage->id;
+            }
+
+            // Duplicate Sections with page mapping
+            $mainSections = \App\Models\Section::where('tenant_id', $mainTenant->id)->get();
+            foreach ($mainSections as $section) {
+                \App\Models\Section::create([
+                    'tenant_id' => $newTenant->id,
+                    'page_id' => $pageMapping[$section->page_id] ?? null,
+                    'type' => $section->type,
+                    'order' => $section->order,
+                    'is_visible' => $section->is_visible,
+                    'content' => $section->content,
+                    'styles' => $section->styles,
+                    'settings' => $section->settings,
+                ]);
+            }
+
+            // Duplicate FAQs
+            foreach ($mainTenant->faqs()->get() as $faq) {
+                $newTenant->faqs()->create([
+                    'question' => $faq->question,
+                    'answer' => $faq->answer,
+                    'category' => $faq->category,
+                    'order' => $faq->order,
+                    'is_published' => $faq->is_published,
+                ]);
+            }
+
+            // Duplicate Testimonials
+            foreach ($mainTenant->testimonials()->get() as $testimonial) {
+                $newTenant->testimonials()->create([
+                    'author_name' => $testimonial->author_name,
+                    'author_title' => $testimonial->author_title,
+                    'author_image' => $testimonial->author_image,
+                    'content' => $testimonial->content,
+                    'rating' => $testimonial->rating,
+                    'is_featured' => $testimonial->is_featured,
+                    'is_published' => $testimonial->is_published,
+                    'order' => $testimonial->order,
+                ]);
+            }
+
+            // Duplicate Team Members
+            foreach ($mainTenant->teamMembers()->get() as $member) {
+                $newTenant->teamMembers()->create([
+                    'name' => $member->name,
+                    'title' => $member->title,
+                    'bio' => $member->bio,
+                    'image' => $member->image,
+                    'credentials' => $member->credentials,
+                    'social_links' => $member->social_links,
+                    'order' => $member->order,
+                    'is_published' => $member->is_published,
+                ]);
+            }
+
+            // Duplicate Menus
+            foreach ($mainTenant->menus()->get() as $menu) {
+                $newTenant->menus()->create([
+                    'name' => $menu->name,
+                    'location' => $menu->location,
+                    'items' => $menu->items,
+                    'is_active' => $menu->is_active,
+                ]);
+            }
+
+            \Log::info("Successfully duplicated content from main tenant to tenant {$newTenant->id} ({$newTenant->name})");
+        } catch (\Exception $e) {
+            \Log::error("Failed to duplicate content from main tenant to tenant {$newTenant->id}: " . $e->getMessage());
+        }
     }
 
     /**

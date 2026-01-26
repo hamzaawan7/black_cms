@@ -40,6 +40,9 @@ Route::prefix('v1')->group(function () {
     // Tenant resolution endpoint - auto-detect tenant from request headers/domain
     Route::get('/site/resolve', [SiteController::class, 'resolve']);
     
+    // Duplicate content from main tenant to target tenant (utility endpoint)
+    Route::post('/site/duplicate-content/{tenantId}', [SiteController::class, 'duplicateContent']);
+    
     // ==========================================
     // PUBLIC API (for frontend consumption)
     // These require X-Tenant-ID header middleware
