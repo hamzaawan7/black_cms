@@ -133,8 +133,9 @@ class TenantService
         // Generate API key for the tenant
         $tenant->regenerateApiKey();
 
-        // If domain is provided, generate NGINX config
+        // If domain is provided, create symlink for shared hosting
         if (!empty($data['domain'])) {
+            $this->createDomainSymlink($tenant, $data['domain']);
             $this->generateNginxForTenant($tenant);
         }
 
@@ -144,6 +145,126 @@ class TenantService
         }
 
         return $tenant->load('activeTemplate');
+    }
+
+    /**
+     * Create symbolic link for domain to point to frontend folder.
+     * This is for shared hosting where NGINX control is not available.
+     */
+    public function createDomainSymlink(Tenant $tenant, string $domain): array
+    {
+        try {
+            // Get paths from config
+            $domainsBasePath = config('app.domains_base_path', '/home/u938549775/domains');
+            $frontendPath = config('app.frontend_public_html', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html');
+            
+            // Clean domain name (remove protocol if any)
+            $cleanDomain = preg_replace('#^https?://#', '', $domain);
+            $cleanDomain = rtrim($cleanDomain, '/');
+            
+            $domainPath = "{$domainsBasePath}/{$cleanDomain}";
+            $publicHtmlPath = "{$domainPath}/public_html";
+            
+            // Check if domain folder exists (created by Hostinger when domain is added)
+            if (!is_dir($domainPath)) {
+                \Log::warning("Domain folder does not exist yet: {$domainPath}. Domain must be added in Hostinger panel first.");
+                return [
+                    'success' => false,
+                    'message' => "Domain folder not found. Please add '{$cleanDomain}' in Hostinger panel first.",
+                    'domain_path' => $domainPath,
+                ];
+            }
+            
+            // Check if public_html already exists
+            if (is_link($publicHtmlPath)) {
+                // Already a symlink, check if pointing to correct location
+                $currentTarget = readlink($publicHtmlPath);
+                if ($currentTarget === $frontendPath) {
+                    \Log::info("Symlink already exists and points to correct location: {$publicHtmlPath}");
+                    return [
+                        'success' => true,
+                        'message' => 'Symlink already configured correctly',
+                        'symlink_path' => $publicHtmlPath,
+                    ];
+                }
+                // Remove incorrect symlink
+                unlink($publicHtmlPath);
+            } elseif (is_dir($publicHtmlPath)) {
+                // Regular directory exists, need to remove it
+                // Be careful - only remove if empty or contains default files
+                $files = scandir($publicHtmlPath);
+                $defaultFiles = ['.', '..', 'index.html', '.htaccess', 'default.html'];
+                $hasCustomFiles = false;
+                
+                foreach ($files as $file) {
+                    if (!in_array($file, $defaultFiles)) {
+                        $hasCustomFiles = true;
+                        break;
+                    }
+                }
+                
+                if ($hasCustomFiles) {
+                    \Log::warning("Cannot create symlink - public_html contains custom files: {$publicHtmlPath}");
+                    return [
+                        'success' => false,
+                        'message' => 'public_html folder contains custom files. Please backup and remove manually.',
+                        'public_html_path' => $publicHtmlPath,
+                    ];
+                }
+                
+                // Remove empty/default public_html directory
+                $this->removeDirectory($publicHtmlPath);
+            }
+            
+            // Create symlink
+            if (symlink($frontendPath, $publicHtmlPath)) {
+                \Log::info("Symlink created successfully: {$publicHtmlPath} -> {$frontendPath}");
+                
+                // Update tenant record
+                $tenant->update([
+                    'frontend_url' => "https://{$cleanDomain}",
+                    'deployment_status' => 'active',
+                ]);
+                
+                return [
+                    'success' => true,
+                    'message' => 'Symlink created successfully',
+                    'symlink_path' => $publicHtmlPath,
+                    'target_path' => $frontendPath,
+                ];
+            } else {
+                \Log::error("Failed to create symlink: {$publicHtmlPath} -> {$frontendPath}");
+                return [
+                    'success' => false,
+                    'message' => 'Failed to create symlink. Check permissions.',
+                ];
+            }
+            
+        } catch (\Exception $e) {
+            \Log::error("Error creating domain symlink: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Remove directory recursively.
+     */
+    protected function removeDirectory(string $path): bool
+    {
+        if (!is_dir($path)) {
+            return false;
+        }
+        
+        $files = array_diff(scandir($path), ['.', '..']);
+        foreach ($files as $file) {
+            $filePath = "{$path}/{$file}";
+            is_dir($filePath) ? $this->removeDirectory($filePath) : unlink($filePath);
+        }
+        
+        return rmdir($path);
     }
 
     /**

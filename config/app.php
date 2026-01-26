@@ -123,4 +123,28 @@ return [
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Multi-Tenant Hosting Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for shared hosting multi-tenant setup.
+    | These paths are used to create symbolic links for tenant domains.
+    |
+    */
+
+    // Base path where all domains are stored (Hostinger structure)
+    'domains_base_path' => env('DOMAINS_BASE_PATH', '/home/u938549775/domains'),
+    
+    // Path to the main frontend public_html folder
+    'frontend_public_html' => env('FRONTEND_PUBLIC_HTML', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html'),
+    
+    // NGINX configuration paths (for VPS deployments)
+    'nginx_config_path' => env('NGINX_CONFIG_PATH', '/etc/nginx/conf.d'),
+    'nginx_sites_available' => env('NGINX_SITES_AVAILABLE', '/etc/nginx/sites-available'),
+    'nginx_sites_enabled' => env('NGINX_SITES_ENABLED', '/etc/nginx/sites-enabled'),
+    
+    // Deployment base path for templates
+    'deployment_base_path' => env('DEPLOYMENT_BASE_PATH', '/var/www/templates'),
+
 ];
