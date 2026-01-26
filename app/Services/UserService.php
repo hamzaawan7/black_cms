@@ -155,8 +155,19 @@ class UserService
             $tenant = Tenant::find($data['tenant_id']);
             if ($tenant) {
                 try {
+                    // Duplicate database content
                     $this->tenantService->duplicateContentFromMainTenant($tenant);
                     \Log::info("Content duplicated successfully for tenant: {$tenant->id}");
+                    
+                    // Copy frontend files to tenant's domain
+                    if ($tenant->domain) {
+                        $copyResult = $this->tenantService->copyFrontendFiles($tenant);
+                        if ($copyResult['success']) {
+                            \Log::info("Frontend files copied for tenant {$tenant->id}: {$copyResult['message']}");
+                        } else {
+                            \Log::warning("Frontend copy warning for tenant {$tenant->id}: {$copyResult['message']}");
+                        }
+                    }
                 } catch (\Exception $e) {
                     // Log the error but don't fail user creation
                     \Log::warning("Content duplication warning for tenant {$tenant->id}: " . $e->getMessage());
