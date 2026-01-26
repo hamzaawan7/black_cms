@@ -479,6 +479,126 @@ class TenantService
     }
 
     /**
+     * Deploy tenant frontend based on hosting mode (VPS or Shared).
+     * 
+     * VPS Mode: Creates Nginx config, generates SSL
+     * Shared Mode: Copies frontend files to tenant's domain folder
+     */
+    public function deployTenantFrontend(Tenant $tenant): array
+    {
+        $hostingMode = config('app.hosting_mode', 'shared');
+        
+        if ($hostingMode === 'vps') {
+            return $this->deployVPS($tenant);
+        }
+        
+        return $this->copyFrontendFiles($tenant);
+    }
+    
+    /**
+     * Deploy tenant for VPS mode (Nginx config + SSL).
+     */
+    protected function deployVPS(Tenant $tenant): array
+    {
+        if (!$tenant->domain) {
+            return ['success' => false, 'message' => 'No domain configured'];
+        }
+        
+        try {
+            // Step 1: Check DNS (optional - just log warning if not pointing)
+            $dnsCheck = $this->checkDNS($tenant->domain);
+            if (!$dnsCheck['success']) {
+                \Log::warning("DNS not yet pointing for {$tenant->domain}: {$dnsCheck['message']}");
+            }
+            
+            // Step 2: Generate Nginx config
+            $frontendPath = config('app.vps_frontend_path', '/var/www/frontend/public');
+            $nginxResult = $this->nginxService->generateConfig($tenant, $tenant->domain, dirname($frontendPath));
+            
+            if (!$nginxResult['success']) {
+                return [
+                    'success' => false,
+                    'message' => 'Failed to create Nginx config: ' . ($nginxResult['error'] ?? 'Unknown error'),
+                ];
+            }
+            
+            // Step 3: Generate SSL (only if DNS is pointing)
+            if ($dnsCheck['success']) {
+                $email = config('app.ssl_admin_email', 'admin@example.com');
+                $sslResult = $this->nginxService->generateSslCertificate($tenant->domain, $email);
+                
+                if ($sslResult['success']) {
+                    $tenant->update(['ssl_status' => 'active']);
+                } else {
+                    \Log::warning("SSL generation pending for {$tenant->domain}: {$sslResult['message']}");
+                }
+            }
+            
+            // Update tenant status
+            $tenant->update([
+                'nginx_status' => 'active',
+                'dns_verified' => $dnsCheck['success'],
+            ]);
+            
+            \Log::info("VPS deployment successful for tenant {$tenant->id}: {$tenant->domain}");
+            
+            return [
+                'success' => true,
+                'message' => 'VPS deployment successful',
+                'nginx_config' => $nginxResult['config_path'] ?? null,
+                'dns_verified' => $dnsCheck['success'],
+                'ssl_status' => $tenant->ssl_status,
+            ];
+            
+        } catch (\Exception $e) {
+            \Log::error("VPS deployment failed for tenant {$tenant->id}: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'VPS deployment error: ' . $e->getMessage(),
+            ];
+        }
+    }
+    
+    /**
+     * Check if domain DNS is pointing to this server.
+     */
+    protected function checkDNS(string $domain): array
+    {
+        $domain = preg_replace('#^https?://#', '', $domain);
+        $domain = rtrim($domain, '/');
+        
+        $serverIP = config('app.server_ip');
+        
+        // If no server IP configured, try to get it
+        if (!$serverIP) {
+            $serverIP = @file_get_contents('https://api.ipify.org') ?: null;
+        }
+        
+        if (!$serverIP) {
+            return ['success' => false, 'message' => 'Could not determine server IP'];
+        }
+        
+        $domainIP = @gethostbyname($domain);
+        
+        if ($domainIP === $domain) {
+            return [
+                'success' => false,
+                'message' => 'Domain DNS not configured',
+                'server_ip' => $serverIP,
+            ];
+        }
+        
+        $isPointing = ($domainIP === $serverIP);
+        
+        return [
+            'success' => $isPointing,
+            'message' => $isPointing ? 'DNS verified' : 'DNS pointing to different IP',
+            'server_ip' => $serverIP,
+            'domain_ip' => $domainIP,
+        ];
+    }
+
+    /**
      * Copy frontend files from main tenant domain to new tenant domain.
      * This is for shared hosting (Hostinger) where symlinks don't work properly.
      * Includes retry mechanism for network/IO failures.

@@ -133,6 +133,12 @@ return [
     |
     */
 
+    // Hosting mode: 'vps' (Nginx config) or 'shared' (File copy for Hostinger)
+    'hosting_mode' => env('HOSTING_MODE', 'shared'),
+    
+    // VPS Server IP (for DNS verification)
+    'server_ip' => env('SERVER_IP', null),
+
     // Base path where all domains are stored (Hostinger structure)
     'domains_base_path' => env('DOMAINS_BASE_PATH', '/home/u938549775/domains'),
     
@@ -146,5 +152,11 @@ return [
     
     // Deployment base path for templates
     'deployment_base_path' => env('DEPLOYMENT_BASE_PATH', '/var/www/templates'),
+    
+    // Main frontend path (for VPS - single copy shared by all tenants)
+    'vps_frontend_path' => env('VPS_FRONTEND_PATH', '/var/www/frontend/public'),
+    
+    // Admin email for SSL certificates
+    'ssl_admin_email' => env('SSL_ADMIN_EMAIL', 'admin@example.com'),
 
 ];

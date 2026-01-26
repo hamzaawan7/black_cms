@@ -159,13 +159,13 @@ class UserService
                     $this->tenantService->duplicateContentFromMainTenant($tenant);
                     \Log::info("Content duplicated successfully for tenant: {$tenant->id}");
                     
-                    // Copy frontend files to tenant's domain
+                    // Deploy frontend based on hosting mode
                     if ($tenant->domain) {
-                        $copyResult = $this->tenantService->copyFrontendFiles($tenant);
-                        if ($copyResult['success']) {
-                            \Log::info("Frontend files copied for tenant {$tenant->id}: {$copyResult['message']}");
+                        $deployResult = $this->tenantService->deployTenantFrontend($tenant);
+                        if ($deployResult['success']) {
+                            \Log::info("Frontend deployed for tenant {$tenant->id}: {$deployResult['message']}");
                         } else {
-                            \Log::warning("Frontend copy warning for tenant {$tenant->id}: {$copyResult['message']}");
+                            \Log::warning("Frontend deploy warning for tenant {$tenant->id}: {$deployResult['message']}");
                         }
                     }
                 } catch (\Exception $e) {
