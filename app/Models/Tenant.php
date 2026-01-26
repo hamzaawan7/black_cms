@@ -26,6 +26,14 @@ class Tenant extends Model
         'deployed_at',
         'nginx_config_path',
         'deployment_path',
+        // VPS Columns
+        'nginx_config_file',
+        'nginx_status',
+        'ssl_status',
+        'ssl_expires_at',
+        'dns_verified',
+        'dns_verified_at',
+        'server_ip',
         // Branding
         'primary_color',
         'secondary_color',
@@ -52,6 +60,10 @@ class Tenant extends Model
         'is_active' => 'boolean',
         'deployed_at' => 'datetime',
         'api_key_expires_at' => 'datetime',
+        // VPS
+        'dns_verified' => 'boolean',
+        'dns_verified_at' => 'datetime',
+        'ssl_expires_at' => 'datetime',
     ];
 
     /**
