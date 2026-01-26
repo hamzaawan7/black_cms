@@ -481,83 +481,112 @@ class TenantService
     /**
      * Copy frontend files from main tenant domain to new tenant domain.
      * This is for shared hosting (Hostinger) where symlinks don't work properly.
+     * Includes retry mechanism for network/IO failures.
      */
-    public function copyFrontendFiles(Tenant $tenant): array
+    public function copyFrontendFiles(Tenant $tenant, int $maxRetries = 3): array
     {
         if (!$tenant->domain) {
             return ['success' => false, 'message' => 'No domain configured'];
         }
 
-        try {
-            $domainsBasePath = config('app.domains_base_path', '/home/u938549775/domains');
-            $mainFrontendPath = config('app.frontend_public_html', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html');
-            
-            // Clean domain name
-            $cleanDomain = preg_replace('#^https?://#', '', $tenant->domain);
-            $cleanDomain = rtrim($cleanDomain, '/');
-            
-            $targetPath = "{$domainsBasePath}/{$cleanDomain}/public_html";
-            
-            // Check if source exists
-            if (!is_dir($mainFrontendPath)) {
-                \Log::error("Main frontend path does not exist: {$mainFrontendPath}");
-                return [
-                    'success' => false,
-                    'message' => "Source frontend path not found: {$mainFrontendPath}",
-                ];
+        $lastError = null;
+        
+        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
+            try {
+                \Log::info("Copying frontend files for tenant {$tenant->id}, attempt {$attempt}/{$maxRetries}");
+                
+                $result = $this->executeCopyFrontendFiles($tenant);
+                
+                if ($result['success']) {
+                    return $result;
+                }
+                
+                $lastError = $result['message'];
+                
+            } catch (\Exception $e) {
+                $lastError = $e->getMessage();
+                \Log::warning("Frontend copy attempt {$attempt} failed: {$lastError}");
             }
             
-            // Check if target domain folder exists
-            $domainFolder = "{$domainsBasePath}/{$cleanDomain}";
-            if (!is_dir($domainFolder)) {
-                \Log::warning("Domain folder does not exist: {$domainFolder}. Domain must be added in Hostinger panel first.");
-                return [
-                    'success' => false,
-                    'message' => "Domain folder not found. Please add '{$cleanDomain}' in Hostinger panel first.",
-                ];
+            // Wait before retry (exponential backoff: 1s, 2s, 4s)
+            if ($attempt < $maxRetries) {
+                sleep(pow(2, $attempt - 1));
             }
-            
-            // Remove existing public_html (symlink or directory)
-            if (is_link($targetPath)) {
-                unlink($targetPath); // Remove symlink
-            } elseif (is_dir($targetPath)) {
-                $this->removeDirectory($targetPath);
-            }
-            
-            // Create target directory
-            if (!mkdir($targetPath, 0755, true) && !is_dir($targetPath)) {
-                return [
-                    'success' => false,
-                    'message' => "Failed to create target directory: {$targetPath}",
-                ];
-            }
-            
-            // Copy all files recursively
-            $this->copyDirectoryRecursive($mainFrontendPath, $targetPath);
-            
-            // Update tenant record
-            $tenant->update([
-                'frontend_url' => "https://{$cleanDomain}",
-                'deployment_status' => 'active',
-                'deployed_at' => now(),
-            ]);
-            
-            \Log::info("Frontend files copied successfully: {$mainFrontendPath} -> {$targetPath}");
-            
-            return [
-                'success' => true,
-                'message' => 'Frontend files copied successfully',
-                'source_path' => $mainFrontendPath,
-                'target_path' => $targetPath,
-            ];
-            
-        } catch (\Exception $e) {
-            \Log::error("Error copying frontend files: " . $e->getMessage());
+        }
+        
+        \Log::error("Frontend copy failed after {$maxRetries} attempts: {$lastError}");
+        return [
+            'success' => false,
+            'message' => "Failed after {$maxRetries} attempts: {$lastError}",
+        ];
+    }
+    
+    /**
+     * Execute the actual frontend file copy.
+     */
+    protected function executeCopyFrontendFiles(Tenant $tenant): array
+    {
+        $domainsBasePath = config('app.domains_base_path', '/home/u938549775/domains');
+        $mainFrontendPath = config('app.frontend_public_html', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html');
+        
+        // Clean domain name
+        $cleanDomain = preg_replace('#^https?://#', '', $tenant->domain);
+        $cleanDomain = rtrim($cleanDomain, '/');
+        
+        $targetPath = "{$domainsBasePath}/{$cleanDomain}/public_html";
+        
+        // Check if source exists
+        if (!is_dir($mainFrontendPath)) {
+            \Log::error("Main frontend path does not exist: {$mainFrontendPath}");
             return [
                 'success' => false,
-                'message' => 'Error: ' . $e->getMessage(),
+                'message' => "Source frontend path not found: {$mainFrontendPath}",
             ];
         }
+        
+        // Check if target domain folder exists
+        $domainFolder = "{$domainsBasePath}/{$cleanDomain}";
+        if (!is_dir($domainFolder)) {
+            \Log::warning("Domain folder does not exist: {$domainFolder}. Domain must be added in Hostinger panel first.");
+            return [
+                'success' => false,
+                'message' => "Domain folder not found. Please add '{$cleanDomain}' in Hostinger panel first.",
+            ];
+        }
+        
+        // Remove existing public_html (symlink or directory)
+        if (is_link($targetPath)) {
+            unlink($targetPath); // Remove symlink
+        } elseif (is_dir($targetPath)) {
+            $this->removeDirectory($targetPath);
+        }
+        
+        // Create target directory
+        if (!mkdir($targetPath, 0755, true) && !is_dir($targetPath)) {
+            return [
+                'success' => false,
+                'message' => "Failed to create target directory: {$targetPath}",
+            ];
+        }
+        
+        // Copy all files recursively
+        $this->copyDirectoryRecursive($mainFrontendPath, $targetPath);
+        
+        // Update tenant record
+        $tenant->update([
+            'frontend_url' => "https://{$cleanDomain}",
+            'deployment_status' => 'active',
+            'deployed_at' => now(),
+        ]);
+        
+        \Log::info("Frontend files copied successfully: {$mainFrontendPath} -> {$targetPath}");
+        
+        return [
+            'success' => true,
+            'message' => 'Frontend files copied successfully',
+            'source_path' => $mainFrontendPath,
+            'target_path' => $targetPath,
+        ];
     }
 
     /**

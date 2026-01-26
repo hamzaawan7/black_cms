@@ -1,6 +1,6 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Plus, Edit, Trash2, Users as UsersIcon, X, Search, Shield, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Users as UsersIcon, X, Search, Shield, Building2, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 
@@ -50,6 +50,7 @@ export default function Index({ users, tenants = [], filters = {} }: UsersIndexP
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
     const [search, setSearch] = useState(filters.search || '');
+    const [loadingMessage, setLoadingMessage] = useState('');
 
     const { data, setData, post, put, processing, reset, errors } = useForm({
         name: '',
@@ -82,22 +83,32 @@ export default function Index({ users, tenants = [], filters = {} }: UsersIndexP
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (editingUser) {
+            setLoadingMessage('Updating user...');
             put(`/admin/users/${editingUser.id}`, {
                 onSuccess: () => {
+                    setLoadingMessage('');
                     setIsModalOpen(false);
                     reset();
                     successNotification('User updated successfully!');
                 },
-                onError: () => errorNotification('Failed to update user'),
+                onError: () => {
+                    setLoadingMessage('');
+                    errorNotification('Failed to update user');
+                },
             });
         } else {
+            setLoadingMessage('Creating user & setting up tenant files...');
             post('/admin/users', {
                 onSuccess: () => {
+                    setLoadingMessage('');
                     setIsModalOpen(false);
                     reset();
-                    successNotification('User created successfully!');
+                    successNotification('User created successfully! Tenant files have been set up.');
                 },
-                onError: () => errorNotification('Failed to create user'),
+                onError: () => {
+                    setLoadingMessage('');
+                    errorNotification('Failed to create user. Please try again.');
+                },
             });
         }
     };
@@ -444,20 +455,35 @@ export default function Index({ users, tenants = [], filters = {} }: UsersIndexP
                                 </div>
 
                                 {/* Modal Footer */}
+                                {/* Loading Overlay */}
+                                {processing && (
+                                    <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center z-10 rounded-2xl">
+                                        <Loader2 className="h-10 w-10 text-[#c9a962] animate-spin mb-4" />
+                                        <p className="text-sm font-medium text-gray-700">{loadingMessage || 'Please wait...'}</p>
+                                        <p className="text-xs text-gray-500 mt-1">Setting up tenant data & files</p>
+                                    </div>
+                                )}
+
                                 <div className="px-8 py-5 bg-gray-50 border-t border-gray-100 flex gap-4">
                                     <button
                                         type="button"
                                         onClick={() => setIsModalOpen(false)}
-                                        className="flex-1 h-12 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white hover:border-gray-300 transition-all"
+                                        disabled={processing}
+                                        className="flex-1 h-12 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white hover:border-gray-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         type="submit"
                                         disabled={processing}
-                                        className="flex-1 h-12 rounded-xl bg-[#c9a962] text-sm font-bold text-white hover:bg-[#b08d4a] disabled:opacity-50 transition-all shadow-lg shadow-[#c9a962]/20"
+                                        className="flex-1 h-12 rounded-xl bg-[#c9a962] text-sm font-bold text-white hover:bg-[#b08d4a] disabled:opacity-50 transition-all shadow-lg shadow-[#c9a962]/20 flex items-center justify-center gap-2"
                                     >
-                                        {processing ? 'Saving...' : editingUser ? 'Update User' : 'Create User'}
+                                        {processing ? (
+                                            <>
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                                <span>Processing...</span>
+                                            </>
+                                        ) : editingUser ? 'Update User' : 'Create User'}
                                     </button>
                                 </div>
                             </form>
