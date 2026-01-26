@@ -54,7 +54,7 @@ class TenantController extends Controller
 
         $templates = Template::where('is_active', true)
             ->orderBy('name')
-            ->get(['id', 'name', 'preview_image', 'description']);
+            ->get(['id', 'name', 'preview_image', 'description', 'default_colors', 'category', 'is_premium']);
 
         return Inertia::render('Admin/Tenants/Index', [
             'tenants' => $tenants,

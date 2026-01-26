@@ -197,13 +197,11 @@ class SiteController extends BaseApiController
             return null;
         }
 
-        // Try exact domain match
-        $tenant = Tenant::where('is_active', true)
-            ->where('domain', $domain)
-            ->with('activeTemplate')
-            ->first();
-
-        if ($tenant) return $tenant;
+        // Use Tenant's findByDomain which checks primary and additional domains
+        $tenant = Tenant::findByDomain($domain);
+        if ($tenant && $tenant->is_active) {
+            return $tenant->load('activeTemplate');
+        }
 
         // Try slug-based subdomain matching
         $parts = explode('.', $domain);

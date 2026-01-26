@@ -9,6 +9,11 @@ interface Template {
     name: string;
     preview_image?: string;
     description?: string;
+    default_colors?: {
+        primary?: string;
+        secondary?: string;
+        background?: string;
+    };
 }
 
 interface Tenant {
@@ -16,12 +21,22 @@ interface Tenant {
     name: string;
     slug: string;
     domain?: string;
+    additional_domains?: string[];
     logo?: string;
     favicon?: string;
     active_template_id?: number;
     active_template?: Template;
+    primary_color?: string;
+    secondary_color?: string;
+    background_color?: string;
+    contact_email?: string;
+    contact_phone?: string;
+    contact_address?: string;
+    meta_title?: string;
+    meta_description?: string;
     settings?: Record<string, any>;
     is_active: boolean;
+    deployment_status?: string;
     users_count: number;
     created_at: string;
 }
@@ -56,6 +71,7 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
         name: '',
         slug: '',
         domain: '',
+        additional_domains: '' as string,
         logo: '',
         favicon: '',
         active_template_id: '' as string | number,
@@ -87,6 +103,7 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
             name: tenant.name,
             slug: tenant.slug,
             domain: tenant.domain || '',
+            additional_domains: (tenant.additional_domains || []).join(', '),
             logo: tenant.logo || '',
             favicon: tenant.favicon || '',
             active_template_id: tenant.active_template_id || '',
@@ -462,7 +479,7 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
 
                                             <div className="col-span-2">
                                                 <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
-                                                    Domain
+                                                    Primary Domain
                                                 </label>
                                                 <div className="relative">
                                                     <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
@@ -475,6 +492,24 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
                                                     />
                                                 </div>
                                                 {errors.domain && <p className="mt-1.5 text-xs text-red-500">{errors.domain}</p>}
+                                            </div>
+
+                                            <div className="col-span-2">
+                                                <label className="block text-xs font-medium text-gray-500 mb-1.5 uppercase tracking-wide">
+                                                    Additional Domains
+                                                </label>
+                                                <div className="relative">
+                                                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                                    <input
+                                                        type="text"
+                                                        value={data.additional_domains}
+                                                        onChange={(e) => setData('additional_domains', e.target.value)}
+                                                        className="w-full h-11 rounded-xl border border-gray-200 pl-11 pr-4 text-sm bg-gray-50/50 focus:bg-white focus:border-[#c9a962] focus:outline-none focus:ring-2 focus:ring-[#c9a962]/20 transition-all"
+                                                        placeholder="www.acme.com, shop.acme.com"
+                                                    />
+                                                </div>
+                                                <p className="mt-1 text-xs text-gray-400">Comma-separated list of additional domains</p>
+                                                {errors.additional_domains && <p className="mt-1.5 text-xs text-red-500">{errors.additional_domains}</p>}
                                             </div>
                                         </div>
                                     </div>

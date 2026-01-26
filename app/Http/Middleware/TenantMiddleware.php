@@ -139,7 +139,7 @@ class TenantMiddleware
 
     /**
      * Find tenant by domain.
-     * Supports exact match and wildcard subdomains.
+     * Supports exact match, additional domains, and wildcard subdomains.
      */
     protected function findTenantByDomain(string $domain): ?Tenant
     {
@@ -149,12 +149,9 @@ class TenantMiddleware
             return null; // Let other strategies handle local development
         }
 
-        // Try exact domain match
-        $tenant = Tenant::where('is_active', true)
-            ->where('domain', $domain)
-            ->first();
-
-        if ($tenant) {
+        // Use Tenant's findByDomain which checks primary and additional domains
+        $tenant = Tenant::findByDomain($domain);
+        if ($tenant && $tenant->is_active) {
             return $tenant;
         }
 
