@@ -133,10 +133,9 @@ class TenantService
         // Generate API key for the tenant
         $tenant->regenerateApiKey();
 
-        // If domain is provided, create symlink for shared hosting
+        // If domain is provided, copy frontend files (not symlink - Hostinger blocks symlinks)
         if (!empty($data['domain'])) {
-            $this->createDomainSymlink($tenant, $data['domain']);
-            $this->generateNginxForTenant($tenant);
+            $this->copyFrontendFiles($tenant);
         }
 
         // If template is assigned, trigger deployment
@@ -518,8 +517,10 @@ class TenantService
                 ];
             }
             
-            // Remove default files from target public_html
-            if (is_dir($targetPath)) {
+            // Remove existing public_html (symlink or directory)
+            if (is_link($targetPath)) {
+                unlink($targetPath); // Remove symlink
+            } elseif (is_dir($targetPath)) {
                 $this->removeDirectory($targetPath);
             }
             
