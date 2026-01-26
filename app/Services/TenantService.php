@@ -103,6 +103,11 @@ class TenantService
             $data['slug'] = $this->generateUniqueSlug($data['name']);
         }
 
+        // Auto-set API base URL to current CMS URL (all tenants use same CMS)
+        if (!isset($data['api_base_url'])) {
+            $data['api_base_url'] = config('app.url') . '/api/v1';
+        }
+
         $tenant = Tenant::create($data);
 
         // Initialize default settings for the tenant
