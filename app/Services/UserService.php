@@ -154,7 +154,13 @@ class UserService
         if (!empty($data['tenant_id'])) {
             $tenant = Tenant::find($data['tenant_id']);
             if ($tenant) {
-                $this->tenantService->duplicateContentFromMainTenant($tenant);
+                try {
+                    $this->tenantService->duplicateContentFromMainTenant($tenant);
+                    \Log::info("Content duplicated successfully for tenant: {$tenant->id}");
+                } catch (\Exception $e) {
+                    // Log the error but don't fail user creation
+                    \Log::warning("Content duplication warning for tenant {$tenant->id}: " . $e->getMessage());
+                }
             }
         }
 

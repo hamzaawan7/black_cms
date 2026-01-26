@@ -143,8 +143,8 @@ class TenantService
             $this->deploymentService->deployTemplate($tenant, $tenant->activeTemplate);
         }
 
-        // Duplicate content from main tenant (ID: 1) if this is a new tenant
-        $this->duplicateContentFromMainTenant($tenant);
+        // Note: Content duplication happens when user is assigned to tenant (in UserService)
+        // This prevents duplicate data if tenant is created but no user assigned yet
 
         return $tenant->load('activeTemplate');
     }
