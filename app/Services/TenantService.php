@@ -180,18 +180,26 @@ class TenantService
         }
 
         try {
-            // Duplicate Settings
+            // Duplicate Settings (check if already exists)
             foreach ($mainTenant->tenantSettings()->get() as $setting) {
-                $newTenant->tenantSettings()->create([
-                    'group' => $setting->group,
-                    'key' => $setting->key,
-                    'value' => $setting->value,
-                ]);
+                if (!$newTenant->tenantSettings()->where('key', $setting->key)->where('group', $setting->group)->exists()) {
+                    $newTenant->tenantSettings()->create([
+                        'group' => $setting->group,
+                        'key' => $setting->key,
+                        'value' => $setting->value,
+                    ]);
+                }
             }
 
             // Duplicate Service Categories first (needed for services)
             $categoryMapping = [];
             foreach ($mainTenant->serviceCategories()->get() as $category) {
+                // Check if category already exists
+                $existing = $newTenant->serviceCategories()->where('slug', $category->slug)->first();
+                if ($existing) {
+                    $categoryMapping[$category->id] = $existing->id;
+                    continue;
+                }
                 $newCategory = $newTenant->serviceCategories()->create([
                     'name' => $category->name,
                     'slug' => $category->slug,
@@ -205,6 +213,10 @@ class TenantService
 
             // Duplicate Services with category mapping
             foreach ($mainTenant->services()->get() as $service) {
+                // Skip if service already exists
+                if ($newTenant->services()->where('slug', $service->slug)->exists()) {
+                    continue;
+                }
                 $newTenant->services()->create([
                     'category_id' => $categoryMapping[$service->category_id] ?? null,
                     'name' => $service->name,
@@ -231,6 +243,12 @@ class TenantService
             // Duplicate Pages first (needed for sections)
             $pageMapping = [];
             foreach ($mainTenant->pages()->get() as $page) {
+                // Check if page already exists
+                $existingPage = $newTenant->pages()->where('slug', $page->slug)->first();
+                if ($existingPage) {
+                    $pageMapping[$page->id] = $existingPage->id;
+                    continue;
+                }
                 $newPage = $newTenant->pages()->create([
                     'title' => $page->title,
                     'slug' => $page->slug,
@@ -247,6 +265,10 @@ class TenantService
 
             // Duplicate FAQs
             foreach ($mainTenant->faqs()->get() as $faq) {
+                // Skip if FAQ already exists
+                if ($newTenant->faqs()->where('question', $faq->question)->exists()) {
+                    continue;
+                }
                 $newTenant->faqs()->create([
                     'question' => $faq->question,
                     'answer' => $faq->answer,
@@ -258,6 +280,10 @@ class TenantService
 
             // Duplicate Testimonials
             foreach ($mainTenant->testimonials()->get() as $testimonial) {
+                // Skip if testimonial already exists
+                if ($newTenant->testimonials()->where('author_name', $testimonial->author_name)->where('content', $testimonial->content)->exists()) {
+                    continue;
+                }
                 $newTenant->testimonials()->create([
                     'author_name' => $testimonial->author_name,
                     'author_title' => $testimonial->author_title,
@@ -272,6 +298,10 @@ class TenantService
 
             // Duplicate Team Members
             foreach ($mainTenant->teamMembers()->get() as $member) {
+                // Skip if team member already exists
+                if ($newTenant->teamMembers()->where('name', $member->name)->exists()) {
+                    continue;
+                }
                 $newTenant->teamMembers()->create([
                     'name' => $member->name,
                     'title' => $member->title,
@@ -286,6 +316,10 @@ class TenantService
 
             // Duplicate Menus
             foreach ($mainTenant->menus()->get() as $menu) {
+                // Skip if menu already exists
+                if ($newTenant->menus()->where('location', $menu->location)->exists()) {
+                    continue;
+                }
                 $newTenant->menus()->create([
                     'name' => $menu->name,
                     'location' => $menu->location,
@@ -296,8 +330,13 @@ class TenantService
 
             // Duplicate Sections with page mapping
             foreach ($mainTenant->sections()->get() as $section) {
+                $newPageId = $pageMapping[$section->page_id] ?? null;
+                // Skip if section already exists for this page with same component_type
+                if ($newPageId && $newTenant->sections()->where('page_id', $newPageId)->where('component_type', $section->component_type)->exists()) {
+                    continue;
+                }
                 $newTenant->sections()->create([
-                    'page_id' => $pageMapping[$section->page_id] ?? null,
+                    'page_id' => $newPageId,
                     'component_type' => $section->component_type,
                     'type' => $section->type,
                     'order' => $section->order,
