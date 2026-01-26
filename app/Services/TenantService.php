@@ -27,17 +27,33 @@ class TenantService
     protected SettingService $settingService;
 
     /**
+     * @var NginxConfigService
+     */
+    protected NginxConfigService $nginxService;
+
+    /**
+     * @var TenantDeploymentService
+     */
+    protected TenantDeploymentService $deploymentService;
+
+    /**
      * Create a new service instance.
      *
      * @param TenantRepositoryInterface $tenantRepository
      * @param SettingService $settingService
+     * @param NginxConfigService $nginxService
+     * @param TenantDeploymentService $deploymentService
      */
     public function __construct(
         TenantRepositoryInterface $tenantRepository,
-        SettingService $settingService
+        SettingService $settingService,
+        NginxConfigService $nginxService,
+        TenantDeploymentService $deploymentService
     ) {
         $this->tenantRepository = $tenantRepository;
         $this->settingService = $settingService;
+        $this->nginxService = $nginxService;
+        $this->deploymentService = $deploymentService;
     }
 
     /**
@@ -108,13 +124,56 @@ class TenantService
             $data['api_base_url'] = config('app.url') . '/api/v1';
         }
 
+        // Set deployment path based on tenant slug
+        $basePath = config('app.deployment_base_path', '/var/www/templates');
+        $data['deployment_path'] = "{$basePath}/{$data['slug']}";
+
         $tenant = Tenant::create($data);
 
-        // Initialize default settings for the tenant
-        // Note: This would need to be run in tenant context
-        // $this->settingService->initializeDefaults();
+        // Generate API key for the tenant
+        $tenant->regenerateApiKey();
+
+        // If domain is provided, generate NGINX config
+        if (!empty($data['domain'])) {
+            $this->generateNginxForTenant($tenant);
+        }
+
+        // If template is assigned, trigger deployment
+        if ($tenant->active_template_id && $tenant->activeTemplate) {
+            $this->deploymentService->deployTemplate($tenant, $tenant->activeTemplate);
+        }
 
         return $tenant->load('activeTemplate');
+    }
+
+    /**
+     * Generate NGINX configuration for a tenant.
+     */
+    public function generateNginxForTenant(Tenant $tenant): array
+    {
+        if (!$tenant->domain) {
+            return ['success' => false, 'message' => 'No domain configured'];
+        }
+
+        $deploymentPath = $tenant->deployment_path ?? $this->deploymentService->getDeploymentPath($tenant);
+        
+        // Generate NGINX config for primary domain
+        $result = $this->nginxService->generateConfig($tenant, $tenant->domain, $deploymentPath);
+        
+        if ($result['success']) {
+            $tenant->update([
+                'nginx_config_path' => $result['config_path'],
+                'deployment_path' => $deploymentPath,
+            ]);
+        }
+
+        // Generate configs for additional domains
+        $additionalDomains = $tenant->additional_domains ?? [];
+        foreach ($additionalDomains as $domain) {
+            $this->nginxService->generateConfig($tenant, $domain, $deploymentPath);
+        }
+
+        return $result;
     }
 
     /**
@@ -122,7 +181,29 @@ class TenantService
      */
     public function update(Tenant $tenant, array $data): Tenant
     {
+        $oldDomain = $tenant->domain;
+        $oldTemplateId = $tenant->active_template_id;
+        
         $tenant->update($data);
+        $tenant->refresh();
+
+        // If domain changed, regenerate NGINX config
+        if (isset($data['domain']) && $data['domain'] !== $oldDomain) {
+            // Delete old NGINX config if exists
+            if ($oldDomain) {
+                $this->nginxService->removeConfig($oldDomain);
+            }
+            // Generate new NGINX config
+            $this->generateNginxForTenant($tenant);
+        }
+
+        // If template changed, redeploy
+        if (isset($data['active_template_id']) && $data['active_template_id'] !== $oldTemplateId) {
+            if ($tenant->activeTemplate) {
+                $this->deploymentService->deployTemplate($tenant, $tenant->activeTemplate);
+            }
+        }
+
         return $tenant->fresh(['activeTemplate']);
     }
 

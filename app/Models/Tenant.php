@@ -24,6 +24,8 @@ class Tenant extends Model
         'frontend_url',
         'deployment_status',
         'deployed_at',
+        'nginx_config_path',
+        'deployment_path',
         // Branding
         'primary_color',
         'secondary_color',
