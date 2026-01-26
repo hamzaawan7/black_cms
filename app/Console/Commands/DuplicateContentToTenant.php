@@ -66,10 +66,10 @@ class DuplicateContentToTenant extends Command
         try {
             // Duplicate Settings
             $settingsCount = 0;
-            foreach ($sourceTenant->settings()->get() as $setting) {
+            foreach ($sourceTenant->tenantSettings()->get() as $setting) {
                 // Skip if setting already exists
-                if (!$targetTenant->settings()->where('key', $setting->key)->where('group', $setting->group)->exists()) {
-                    $targetTenant->settings()->create([
+                if (!$targetTenant->tenantSettings()->where('key', $setting->key)->where('group', $setting->group)->exists()) {
+                    $targetTenant->tenantSettings()->create([
                         'group' => $setting->group,
                         'key' => $setting->key,
                         'value' => $setting->value,
