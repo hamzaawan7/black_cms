@@ -17,6 +17,12 @@ interface SettingsData {
     secondary_color: string;
     background_color: string;
     
+    // Header/Footer Colors (appearance group)
+    header_background_color: string;
+    header_text_color: string;
+    footer_background_color: string;
+    footer_text_color: string;
+    
     // Typography (appearance group)
     font_heading: string;
     font_body: string;
@@ -82,6 +88,10 @@ const defaultSettings: SettingsData = {
     primary_color: '#9a8b7a',
     secondary_color: '#3d3d3d',
     background_color: '#f5f2eb',
+    header_background_color: '#f5f2eb',
+    header_text_color: '#3d3d3d',
+    footer_background_color: '#f5f2eb',
+    footer_text_color: '#3d3d3d',
     font_heading: 'Playfair Display',
     font_body: 'Inter',
     contact_email: 'hello@hyvewellness.com',
@@ -118,6 +128,10 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
         primary_color: settings.primary_color || '#9a8b7a',
         secondary_color: settings.secondary_color || '#3d3d3d',
         background_color: settings.background_color || '#f5f2eb',
+        header_background_color: settings.header_background_color || '#1a1a2e',
+        header_text_color: settings.header_text_color || '#ffffff',
+        footer_background_color: settings.footer_background_color || '#1a1a2e',
+        footer_text_color: settings.footer_text_color || '#ffffff',
         font_heading: settings.font_heading || 'Playfair Display',
         font_body: settings.font_body || 'Inter',
         contact_email: settings.contact_email || '',
@@ -149,6 +163,10 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
         primary_color: 'appearance',
         secondary_color: 'appearance',
         background_color: 'appearance',
+        header_background_color: 'appearance',
+        header_text_color: 'appearance',
+        footer_background_color: 'appearance',
+        footer_text_color: 'appearance',
         font_heading: 'appearance',
         font_body: 'appearance',
         contact_email: 'contact',
@@ -622,27 +640,153 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                         </p>
                                     </div>
 
+                                    {/* Header Colors Section */}
+                                    <div className="pt-4 border-t border-gray-200">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-sm font-medium text-gray-700">Header Colors</h4>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    updateField('header_background_color', '#f5f2eb');
+                                                    updateField('header_text_color', '#3d3d3d');
+                                                }}
+                                                className="text-xs text-gray-500 hover:text-[#c9a962] transition-colors"
+                                            >
+                                                Reset to Default
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Header Background
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={data.header_background_color}
+                                                        onChange={(e) => updateField('header_background_color', e.target.value)}
+                                                        className="h-10 w-14 rounded border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={data.header_background_color}
+                                                        onChange={(e) => updateField('header_background_color', e.target.value)}
+                                                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#c9a962] focus:outline-none focus:ring-1 focus:ring-[#c9a962]"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Header Text
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={data.header_text_color}
+                                                        onChange={(e) => updateField('header_text_color', e.target.value)}
+                                                        className="h-10 w-14 rounded border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={data.header_text_color}
+                                                        onChange={(e) => updateField('header_text_color', e.target.value)}
+                                                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#c9a962] focus:outline-none focus:ring-1 focus:ring-[#c9a962]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Footer Colors Section */}
+                                    <div className="pt-4 border-t border-gray-200">
+                                        <div className="flex items-center justify-between mb-3">
+                                            <h4 className="text-sm font-medium text-gray-700">Footer Colors</h4>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    updateField('footer_background_color', '#f5f2eb');
+                                                    updateField('footer_text_color', '#3d3d3d');
+                                                }}
+                                                className="text-xs text-gray-500 hover:text-[#c9a962] transition-colors"
+                                            >
+                                                Reset to Default
+                                            </button>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Footer Background
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={data.footer_background_color}
+                                                        onChange={(e) => updateField('footer_background_color', e.target.value)}
+                                                        className="h-10 w-14 rounded border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={data.footer_background_color}
+                                                        onChange={(e) => updateField('footer_background_color', e.target.value)}
+                                                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#c9a962] focus:outline-none focus:ring-1 focus:ring-[#c9a962]"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Footer Text
+                                                </label>
+                                                <div className="flex items-center gap-2">
+                                                    <input
+                                                        type="color"
+                                                        value={data.footer_text_color}
+                                                        onChange={(e) => updateField('footer_text_color', e.target.value)}
+                                                        className="h-10 w-14 rounded border border-gray-300 cursor-pointer"
+                                                    />
+                                                    <input
+                                                        type="text"
+                                                        value={data.footer_text_color}
+                                                        onChange={(e) => updateField('footer_text_color', e.target.value)}
+                                                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-[#c9a962] focus:outline-none focus:ring-1 focus:ring-[#c9a962]"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
                                     {/* Color preview */}
                                     <div className="pt-4 border-t border-gray-200">
                                         <h4 className="text-sm font-medium text-gray-700 mb-3">Preview</h4>
-                                        <div className="flex gap-4">
+                                        <div className="flex flex-wrap gap-4">
                                             <div
-                                                className="w-24 h-24 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
+                                                className="w-20 h-20 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
                                                 style={{ backgroundColor: data.primary_color }}
                                             >
                                                 Primary
                                             </div>
                                             <div
-                                                className="w-24 h-24 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
+                                                className="w-20 h-20 rounded-lg shadow-sm flex items-center justify-center text-white text-xs font-medium"
                                                 style={{ backgroundColor: data.secondary_color }}
                                             >
                                                 Secondary
                                             </div>
                                             <div
-                                                className="w-24 h-24 rounded-lg shadow-sm flex items-center justify-center text-gray-700 text-xs font-medium border"
+                                                className="w-20 h-20 rounded-lg shadow-sm flex items-center justify-center text-gray-700 text-xs font-medium border"
                                                 style={{ backgroundColor: data.background_color }}
                                             >
                                                 Background
+                                            </div>
+                                            <div
+                                                className="w-20 h-20 rounded-lg shadow-sm flex items-center justify-center text-xs font-medium"
+                                                style={{ backgroundColor: data.header_background_color, color: data.header_text_color }}
+                                            >
+                                                Header
+                                            </div>
+                                            <div
+                                                className="w-20 h-20 rounded-lg shadow-sm flex items-center justify-center text-xs font-medium"
+                                                style={{ backgroundColor: data.footer_background_color, color: data.footer_text_color }}
+                                            >
+                                                Footer
                                             </div>
                                         </div>
                                     </div>
