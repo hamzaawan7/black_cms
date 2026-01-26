@@ -589,8 +589,8 @@ class TenantService
         ]);
 
         // Duplicate Settings
-        foreach ($sourceTenant->settings()->get() as $setting) {
-            $newTenant->settings()->create([
+        foreach ($sourceTenant->tenantSettings()->get() as $setting) {
+            $newTenant->tenantSettings()->create([
                 'group' => $setting->group,
                 'key' => $setting->key,
                 'value' => $setting->value,
