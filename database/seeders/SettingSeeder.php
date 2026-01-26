@@ -37,13 +37,13 @@ class SettingSeeder extends Seeder
             [
                 'tenant_id' => $tenantId,
                 'key' => 'site_logo',
-                'value' => '/images/logo.png',
+                'value' => '/images/hyve-20logo-20-20350-20x-20100-20-20charcoal.png',
                 'group' => 'general',
             ],
             [
                 'tenant_id' => $tenantId,
                 'key' => 'site_favicon',
-                'value' => '/images/favicon.ico',
+                'value' => '/images/hyve-logo-icon.png',
                 'group' => 'general',
             ],
 

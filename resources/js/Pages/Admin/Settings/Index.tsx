@@ -371,7 +371,8 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                                 });
                                                                                 if (response.ok) {
                                                                                     const result = await response.json();
-                                                                                    updateField('site_logo', result.url || result.path);
+                                                                                    const mediaData = result.data || result;
+                                                                                    updateField('site_logo', mediaData.url || mediaData.path || '');
                                                                                 }
                                                                             } catch (error) {
                                                                                 console.error('Upload failed:', error);
@@ -414,7 +415,8 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                         });
                                                                         if (response.ok) {
                                                                             const result = await response.json();
-                                                                            updateField('site_logo', result.url || result.path);
+                                                                            const mediaData = result.data || result;
+                                                                            updateField('site_logo', mediaData.url || mediaData.path || '');
                                                                         }
                                                                     } catch (error) {
                                                                         console.error('Upload failed:', error);
@@ -483,7 +485,8 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                                 });
                                                                                 if (response.ok) {
                                                                                     const result = await response.json();
-                                                                                    updateField('site_favicon', result.url || result.path);
+                                                                                    const mediaData = result.data || result;
+                                                                                    updateField('site_favicon', mediaData.url || mediaData.path || '');
                                                                                 }
                                                                             } catch (error) {
                                                                                 console.error('Upload failed:', error);
@@ -519,7 +522,8 @@ export default function Index({ settings = {} }: SettingsIndexProps) {
                                                                         });
                                                                         if (response.ok) {
                                                                             const result = await response.json();
-                                                                            updateField('site_favicon', result.url || result.path);
+                                                                            const mediaData = result.data || result;
+                                                                            updateField('site_favicon', mediaData.url || mediaData.path || '');
                                                                         }
                                                                     } catch (error) {
                                                                         console.error('Upload failed:', error);
