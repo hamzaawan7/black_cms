@@ -154,14 +154,29 @@ class TenantService
      * Duplicate all content from main tenant (ID: 1) to a new tenant.
      * This includes: Settings, Service Categories, Services, Pages, Sections, 
      * FAQs, Testimonials, Team Members, and Menus.
+     * 
+     * @param Tenant $newTenant The tenant to duplicate content to
+     * @param bool $force If true, will duplicate even if content already exists
      */
-    protected function duplicateContentFromMainTenant(Tenant $newTenant): void
+    public function duplicateContentFromMainTenant(Tenant $newTenant, bool $force = false): void
     {
         // Get main tenant (ID: 1)
         $mainTenant = Tenant::find(1);
         
         if (!$mainTenant || $newTenant->id === 1) {
             return; // Don't duplicate if main tenant doesn't exist or if this IS the main tenant
+        }
+
+        // Check if tenant already has content (unless force is true)
+        if (!$force) {
+            $hasContent = $newTenant->pages()->count() > 0 
+                || $newTenant->services()->count() > 0 
+                || $newTenant->serviceCategories()->count() > 0;
+            
+            if ($hasContent) {
+                \Log::info("Tenant {$newTenant->id} already has content, skipping duplication");
+                return;
+            }
         }
 
         try {

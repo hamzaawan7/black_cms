@@ -25,13 +25,20 @@ class UserService
     protected UserRepositoryInterface $userRepository;
 
     /**
+     * @var TenantService
+     */
+    protected TenantService $tenantService;
+
+    /**
      * Create a new service instance.
      *
      * @param UserRepositoryInterface $userRepository
+     * @param TenantService $tenantService
      */
-    public function __construct(UserRepositoryInterface $userRepository)
+    public function __construct(UserRepositoryInterface $userRepository, TenantService $tenantService)
     {
         $this->userRepository = $userRepository;
+        $this->tenantService = $tenantService;
     }
 
     /**
@@ -141,7 +148,17 @@ class UserService
             $data['tenant_id'] = null;
         }
 
-        return $this->userRepository->create($data);
+        $user = $this->userRepository->create($data);
+
+        // If tenant is assigned, duplicate content from main tenant
+        if (!empty($data['tenant_id'])) {
+            $tenant = Tenant::find($data['tenant_id']);
+            if ($tenant) {
+                $this->tenantService->duplicateContentFromMainTenant($tenant);
+            }
+        }
+
+        return $user;
     }
 
     /**
@@ -153,6 +170,11 @@ class UserService
      */
     public function update(User $user, array $data): User
     {
+        // Track if tenant is being changed
+        $oldTenantId = $user->tenant_id;
+        $newTenantId = $data['tenant_id'] ?? $oldTenantId;
+        $tenantChanged = $newTenantId !== null && $newTenantId != $oldTenantId;
+
         // Hash password if provided and not empty
         if (!empty($data['password'])) {
             $data['password'] = Hash::make($data['password']);
@@ -172,9 +194,18 @@ class UserService
         // Super admins don't need tenant
         if (($data['role'] ?? $user->role) === 'super_admin') {
             $data['tenant_id'] = null;
+            $tenantChanged = false;
         }
 
         $this->userRepository->update($user->id, $data);
+
+        // If tenant was assigned/changed, duplicate content from main tenant
+        if ($tenantChanged && $newTenantId) {
+            $tenant = Tenant::find($newTenantId);
+            if ($tenant) {
+                $this->tenantService->duplicateContentFromMainTenant($tenant);
+            }
+        }
 
         return $user->fresh(['tenant']);
     }
