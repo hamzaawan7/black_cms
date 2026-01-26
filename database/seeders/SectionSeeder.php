@@ -83,6 +83,7 @@ class SectionSeeder extends Seeder
 
         foreach ($sections as $index => $sectionData) {
             Section::create([
+                'tenant_id' => $page->tenant_id,
                 'page_id' => $page->id,
                 'component_type' => $sectionData['component_type'],
                 'order' => $index + 1,
@@ -372,6 +373,7 @@ class SectionSeeder extends Seeder
 
         foreach ($sections as $index => $sectionData) {
             Section::create([
+                'tenant_id' => $page->tenant_id,
                 'page_id' => $page->id,
                 'component_type' => $sectionData['component_type'],
                 'order' => $index + 1,
@@ -424,6 +426,7 @@ class SectionSeeder extends Seeder
 
         foreach ($sections as $index => $sectionData) {
             Section::create([
+                'tenant_id' => $page->tenant_id,
                 'page_id' => $page->id,
                 'component_type' => $sectionData['component_type'],
                 'order' => $index + 1,
@@ -474,6 +477,7 @@ class SectionSeeder extends Seeder
 
         foreach ($sections as $index => $sectionData) {
             Section::create([
+                'tenant_id' => $page->tenant_id,
                 'page_id' => $page->id,
                 'component_type' => $sectionData['component_type'],
                 'order' => $index + 1,

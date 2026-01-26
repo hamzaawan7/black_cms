@@ -249,4 +249,12 @@ class Tenant extends Model
     {
         return $this->hasMany(TeamMember::class);
     }
+
+    /**
+     * Get all sections belonging to this tenant.
+     */
+    public function sections(): HasMany
+    {
+        return $this->hasMany(Section::class);
+    }
 }

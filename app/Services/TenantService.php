@@ -245,21 +245,6 @@ class TenantService
                 $pageMapping[$page->id] = $newPage->id;
             }
 
-            // Duplicate Sections with page mapping
-            $mainSections = \App\Models\Section::where('tenant_id', $mainTenant->id)->get();
-            foreach ($mainSections as $section) {
-                \App\Models\Section::create([
-                    'tenant_id' => $newTenant->id,
-                    'page_id' => $pageMapping[$section->page_id] ?? null,
-                    'type' => $section->type,
-                    'order' => $section->order,
-                    'is_visible' => $section->is_visible,
-                    'content' => $section->content,
-                    'styles' => $section->styles,
-                    'settings' => $section->settings,
-                ]);
-            }
-
             // Duplicate FAQs
             foreach ($mainTenant->faqs()->get() as $faq) {
                 $newTenant->faqs()->create([
@@ -309,9 +294,29 @@ class TenantService
                 ]);
             }
 
+            // Duplicate Sections with page mapping
+            foreach ($mainTenant->sections()->get() as $section) {
+                $newTenant->sections()->create([
+                    'page_id' => $pageMapping[$section->page_id] ?? null,
+                    'component_type' => $section->component_type,
+                    'type' => $section->type,
+                    'order' => $section->order,
+                    'is_visible' => $section->is_visible,
+                    'content' => $section->content,
+                    'styles' => $section->styles,
+                    'settings' => $section->settings,
+                ]);
+            }
+
             \Log::info("Successfully duplicated content from main tenant to tenant {$newTenant->id} ({$newTenant->name})");
+
+            // Copy frontend files to new tenant's domain
+            if ($newTenant->domain) {
+                $this->copyFrontendFiles($newTenant);
+            }
         } catch (\Exception $e) {
             \Log::error("Failed to duplicate content from main tenant to tenant {$newTenant->id}: " . $e->getMessage());
+            throw $e;
         }
     }
 
@@ -433,6 +438,115 @@ class TenantService
         }
         
         return rmdir($path);
+    }
+
+    /**
+     * Copy frontend files from main tenant domain to new tenant domain.
+     * This is for shared hosting (Hostinger) where symlinks don't work properly.
+     */
+    public function copyFrontendFiles(Tenant $tenant): array
+    {
+        if (!$tenant->domain) {
+            return ['success' => false, 'message' => 'No domain configured'];
+        }
+
+        try {
+            $domainsBasePath = config('app.domains_base_path', '/home/u938549775/domains');
+            $mainFrontendPath = config('app.frontend_public_html', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html');
+            
+            // Clean domain name
+            $cleanDomain = preg_replace('#^https?://#', '', $tenant->domain);
+            $cleanDomain = rtrim($cleanDomain, '/');
+            
+            $targetPath = "{$domainsBasePath}/{$cleanDomain}/public_html";
+            
+            // Check if source exists
+            if (!is_dir($mainFrontendPath)) {
+                \Log::error("Main frontend path does not exist: {$mainFrontendPath}");
+                return [
+                    'success' => false,
+                    'message' => "Source frontend path not found: {$mainFrontendPath}",
+                ];
+            }
+            
+            // Check if target domain folder exists
+            $domainFolder = "{$domainsBasePath}/{$cleanDomain}";
+            if (!is_dir($domainFolder)) {
+                \Log::warning("Domain folder does not exist: {$domainFolder}. Domain must be added in Hostinger panel first.");
+                return [
+                    'success' => false,
+                    'message' => "Domain folder not found. Please add '{$cleanDomain}' in Hostinger panel first.",
+                ];
+            }
+            
+            // Remove default files from target public_html
+            if (is_dir($targetPath)) {
+                $this->removeDirectory($targetPath);
+            }
+            
+            // Create target directory
+            if (!mkdir($targetPath, 0755, true) && !is_dir($targetPath)) {
+                return [
+                    'success' => false,
+                    'message' => "Failed to create target directory: {$targetPath}",
+                ];
+            }
+            
+            // Copy all files recursively
+            $this->copyDirectoryRecursive($mainFrontendPath, $targetPath);
+            
+            // Update tenant record
+            $tenant->update([
+                'frontend_url' => "https://{$cleanDomain}",
+                'deployment_status' => 'active',
+                'deployed_at' => now(),
+            ]);
+            
+            \Log::info("Frontend files copied successfully: {$mainFrontendPath} -> {$targetPath}");
+            
+            return [
+                'success' => true,
+                'message' => 'Frontend files copied successfully',
+                'source_path' => $mainFrontendPath,
+                'target_path' => $targetPath,
+            ];
+            
+        } catch (\Exception $e) {
+            \Log::error("Error copying frontend files: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Error: ' . $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Copy directory recursively.
+     */
+    protected function copyDirectoryRecursive(string $source, string $destination): void
+    {
+        $dir = opendir($source);
+        
+        if (!is_dir($destination)) {
+            mkdir($destination, 0755, true);
+        }
+        
+        while (($file = readdir($dir)) !== false) {
+            if ($file === '.' || $file === '..') {
+                continue;
+            }
+            
+            $srcPath = "{$source}/{$file}";
+            $destPath = "{$destination}/{$file}";
+            
+            if (is_dir($srcPath)) {
+                $this->copyDirectoryRecursive($srcPath, $destPath);
+            } else {
+                copy($srcPath, $destPath);
+            }
+        }
+        
+        closedir($dir);
     }
 
     /**

@@ -168,13 +168,14 @@ class DuplicateContentToTenant extends Command
                     // Check if section already exists for this page
                     $existingSection = Section::where('tenant_id', $targetTenant->id)
                         ->where('page_id', $newPageId)
-                        ->where('type', $section->type)
+                        ->where('component_type', $section->component_type)
                         ->first();
                     
                     if (!$existingSection) {
                         Section::create([
                             'tenant_id' => $targetTenant->id,
                             'page_id' => $newPageId,
+                            'component_type' => $section->component_type,
                             'type' => $section->type,
                             'order' => $section->order,
                             'is_visible' => $section->is_visible,
