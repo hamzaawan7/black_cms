@@ -181,4 +181,33 @@ class TenantController extends Controller
 
         return back()->with('success', "Tenant '{$tenant->name}' has been {$status}.");
     }
+
+    /**
+     * Duplicate a tenant with all its data.
+     *
+     * @param Request $request
+     * @param Tenant $tenant
+     * @return RedirectResponse
+     */
+    public function duplicate(Request $request, Tenant $tenant): RedirectResponse
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'domain' => 'nullable|string|max:255|unique:tenants,domain',
+        ]);
+
+        try {
+            $newTenant = $this->tenantService->duplicate(
+                $tenant,
+                $request->input('name'),
+                $request->input('domain')
+            );
+
+            return redirect()
+                ->route('admin.tenants.index')
+                ->with('success', "Tenant '{$newTenant->name}' has been created from '{$tenant->name}' successfully.");
+        } catch (\Exception $e) {
+            return back()->with('error', "Failed to duplicate tenant: " . $e->getMessage());
+        }
+    }
 }

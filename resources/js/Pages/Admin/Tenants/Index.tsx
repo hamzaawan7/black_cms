@@ -1,6 +1,6 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Plus, Edit, Trash2, Building2, X, Search, Users, Globe, Image as ImageIcon, LayoutTemplate } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, X, Search, Users, Globe, Image as ImageIcon, LayoutTemplate, Copy } from 'lucide-react';
 import { useState } from 'react';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 
@@ -47,6 +47,10 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
     const [search, setSearch] = useState(filters.search || '');
+    
+    // Duplicate modal state
+    const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
+    const [duplicatingTenant, setDuplicatingTenant] = useState<Tenant | null>(null);
 
     const { data, setData, post, put, processing, reset, errors } = useForm({
         name: '',
@@ -56,6 +60,19 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
         favicon: '',
         active_template_id: '' as string | number,
         is_active: true,
+    });
+
+    // Duplicate form
+    const { 
+        data: duplicateData, 
+        setData: setDuplicateData, 
+        post: postDuplicate, 
+        processing: duplicateProcessing, 
+        reset: resetDuplicate, 
+        errors: duplicateErrors 
+    } = useForm({
+        name: '',
+        domain: '',
     });
 
     const openCreateModal = () => {
@@ -126,6 +143,35 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
 
     const toggleActive = (tenant: Tenant) => {
         router.post(`/admin/tenants/${tenant.id}/toggle-active`);
+    };
+
+    // Duplicate handlers
+    const openDuplicateModal = (tenant: Tenant) => {
+        setDuplicatingTenant(tenant);
+        setDuplicateData({
+            name: `${tenant.name} (Copy)`,
+            domain: '',
+        });
+        setIsDuplicateModalOpen(true);
+    };
+
+    const closeDuplicateModal = () => {
+        setIsDuplicateModalOpen(false);
+        setDuplicatingTenant(null);
+        resetDuplicate();
+    };
+
+    const handleDuplicate = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!duplicatingTenant) return;
+        
+        postDuplicate(`/admin/tenants/${duplicatingTenant.id}/duplicate`, {
+            onSuccess: () => {
+                closeDuplicateModal();
+                successNotification('Tenant duplicated successfully! All settings, pages, and content have been copied.');
+            },
+            onError: () => errorNotification('Failed to duplicate tenant'),
+        });
     };
 
     return (
@@ -274,6 +320,13 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
                                     >
                                         <Edit className="h-4 w-4" />
                                         Edit
+                                    </button>
+                                    <button
+                                        onClick={() => openDuplicateModal(tenant)}
+                                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                                        title="Duplicate this tenant"
+                                    >
+                                        <Copy className="h-4 w-4" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(tenant.id, tenant.name)}
@@ -564,6 +617,107 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
                                         className="flex-1 h-12 rounded-xl bg-[#c9a962] text-sm font-bold text-white hover:bg-[#b08d4a] disabled:opacity-50 transition-all shadow-lg shadow-[#c9a962]/20"
                                     >
                                         {processing ? 'Saving...' : editingTenant ? 'Update Tenant' : 'Create Tenant'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Duplicate Tenant Modal */}
+            {isDuplicateModalOpen && duplicatingTenant && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex min-h-full items-center justify-center p-4">
+                        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={closeDuplicateModal} />
+                        <div className="relative w-full max-w-md transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all">
+                            {/* Modal Header */}
+                            <div className="relative bg-gradient-to-br from-blue-600 via-blue-500 to-blue-700 px-8 pt-8 pb-6 text-white overflow-hidden">
+                                <div className="absolute inset-0 opacity-10">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -translate-y-1/2 translate-x-1/2" />
+                                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+                                </div>
+                                <button
+                                    onClick={closeDuplicateModal}
+                                    className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                                <div className="relative">
+                                    <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mb-4 shadow-lg">
+                                        <Copy className="h-7 w-7" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold">Duplicate Tenant</h2>
+                                    <p className="text-blue-100 mt-1 text-sm">Create a copy of "{duplicatingTenant.name}" with all settings, pages, and content.</p>
+                                </div>
+                            </div>
+
+                            {/* Modal Body */}
+                            <form onSubmit={handleDuplicate}>
+                                <div className="p-8 space-y-6">
+                                    {/* Name */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            New Tenant Name <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={duplicateData.name}
+                                            onChange={(e) => setDuplicateData('name', e.target.value)}
+                                            className={`w-full px-4 h-12 rounded-xl border ${duplicateErrors.name ? 'border-red-300 focus:ring-red-500' : 'border-gray-200 focus:border-blue-500 focus:ring-blue-500'} focus:ring-1 focus:outline-none transition-colors`}
+                                            placeholder="Enter tenant name"
+                                            required
+                                        />
+                                        {duplicateErrors.name && <p className="mt-2 text-xs text-red-500">{duplicateErrors.name}</p>}
+                                    </div>
+
+                                    {/* Domain (optional) */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Domain <span className="text-gray-400 text-xs">(optional)</span>
+                                        </label>
+                                        <div className="relative">
+                                            <Globe className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                                            <input
+                                                type="text"
+                                                value={duplicateData.domain}
+                                                onChange={(e) => setDuplicateData('domain', e.target.value)}
+                                                className={`w-full pl-12 pr-4 h-12 rounded-xl border ${duplicateErrors.domain ? 'border-red-300 focus:ring-red-500' : 'border-gray-200 focus:border-blue-500 focus:ring-blue-500'} focus:ring-1 focus:outline-none transition-colors`}
+                                                placeholder="example.com"
+                                            />
+                                        </div>
+                                        {duplicateErrors.domain && <p className="mt-2 text-xs text-red-500">{duplicateErrors.domain}</p>}
+                                        <p className="mt-1 text-xs text-gray-500">Leave empty if you want to set domain later</p>
+                                    </div>
+
+                                    {/* Info box */}
+                                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                                        <h4 className="text-sm font-semibold text-blue-800 mb-2">What will be duplicated:</h4>
+                                        <ul className="text-xs text-blue-700 space-y-1">
+                                            <li>• All settings (appearance, contact info, SEO)</li>
+                                            <li>• Pages and sections</li>
+                                            <li>• Services and categories</li>
+                                            <li>• FAQs, testimonials, team members</li>
+                                            <li>• Navigation menus</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                {/* Modal Footer */}
+                                <div className="px-8 py-5 bg-gray-50 border-t border-gray-100 flex gap-4">
+                                    <button
+                                        type="button"
+                                        onClick={closeDuplicateModal}
+                                        className="flex-1 h-12 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white hover:border-gray-300 transition-all"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={duplicateProcessing}
+                                        className="flex-1 h-12 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-600/20"
+                                    >
+                                        {duplicateProcessing ? 'Duplicating...' : 'Duplicate Tenant'}
                                     </button>
                                 </div>
                             </form>

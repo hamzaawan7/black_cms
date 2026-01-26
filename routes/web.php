@@ -112,6 +112,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             // Tenants
             Route::resource('tenants', TenantController::class);
             Route::post('/tenants/{tenant}/toggle-active', [TenantController::class, 'toggleActive'])->name('tenants.toggle-active');
+            Route::post('/tenants/{tenant}/duplicate', [TenantController::class, 'duplicate'])->name('tenants.duplicate');
             
             // Templates
             Route::resource('templates', TemplateController::class);
