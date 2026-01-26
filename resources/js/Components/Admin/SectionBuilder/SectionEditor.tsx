@@ -76,8 +76,7 @@ const fieldDefinitions: Record<string, Record<string, { type: string; label: str
         description: { type: 'textarea', label: 'Description' },
         cta_text: { type: 'text', label: 'Button Text' },
         cta_link: { type: 'url', label: 'Button Link' },
-        primary_image: { type: 'image', label: 'Primary Image' },
-        secondary_image: { type: 'image', label: 'Secondary Image' },
+        images: { type: 'team_images', label: 'Team Images', hint: 'Primary and secondary team images' },
     },
     contact: {
         pre_title: { type: 'text', label: 'Pre-Title' },
@@ -121,11 +120,13 @@ const fieldDefinitions: Record<string, Record<string, { type: string; label: str
     },
     stats: {
         title: { type: 'text', label: 'Section Title' },
+        items: { type: 'stats_items', label: 'Statistics Items', hint: 'Add stats with icon, value and label' },
     },
     mission: {
         title: { type: 'text', label: 'Title' },
         description: { type: 'textarea', label: 'Description' },
         image: { type: 'image', label: 'Image' },
+        points: { type: 'text_array', label: 'Key Points', hint: 'List of key points' },
     },
     // Services page sections
     services_hero: {
@@ -717,6 +718,213 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
                                     <ImageIcon className="h-8 w-8 text-gray-300 mx-auto mb-2" />
                                     <p className="text-sm text-gray-400">No products added yet</p>
                                     <p className="text-xs text-gray-400 mt-1">Click "Add Product" to add featured products to the hero slider</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+
+            case 'team_images':
+                const teamImages = typeof value === 'object' && value !== null ? value : { primary: '', secondary: '' };
+                return (
+                    <div key={fieldName} className="space-y-4">
+                        <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                            {fieldConfig.label}
+                        </label>
+                        {fieldConfig.hint && (
+                            <p className="text-xs text-gray-400">{fieldConfig.hint}</p>
+                        )}
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1.5">Primary Image</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={teamImages.primary || ''}
+                                        onChange={(e) => handleContentChange(fieldName, { ...teamImages, primary: e.target.value })}
+                                        className="flex-1 h-10 rounded-lg border border-gray-200 px-3 text-sm"
+                                        placeholder="/storage/media/..."
+                                    />
+                                    {teamImages.primary && (
+                                        <div className="h-10 w-10 rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+                                            <img src={teamImages.primary} alt="Primary" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-medium text-gray-500 mb-1.5">Secondary Image</label>
+                                <div className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={teamImages.secondary || ''}
+                                        onChange={(e) => handleContentChange(fieldName, { ...teamImages, secondary: e.target.value })}
+                                        className="flex-1 h-10 rounded-lg border border-gray-200 px-3 text-sm"
+                                        placeholder="/storage/media/..."
+                                    />
+                                    {teamImages.secondary && (
+                                        <div className="h-10 w-10 rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+                                            <img src={teamImages.secondary} alt="Secondary" className="h-full w-full object-cover" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+
+            case 'stats_items':
+                const statsItems = Array.isArray(value) ? value : [];
+                return (
+                    <div key={fieldName} className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                {fieldConfig.label}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const newItem = { icon: 'Star', value: '', label: '' };
+                                    handleContentChange(fieldName, [...statsItems, newItem]);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#c9a962] bg-[#c9a962]/10 rounded-lg hover:bg-[#c9a962]/20 transition-colors"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                Add Stat
+                            </button>
+                        </div>
+                        {fieldConfig.hint && (
+                            <p className="text-xs text-gray-400">{fieldConfig.hint}</p>
+                        )}
+                        <div className="space-y-3">
+                            {statsItems.map((item: any, idx: number) => (
+                                <div key={idx} className="relative bg-white rounded-xl border border-gray-200 p-4">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <span className="text-xs font-semibold text-gray-500">Stat #{idx + 1}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const newItems = statsItems.filter((_: any, i: number) => i !== idx);
+                                                handleContentChange(fieldName, newItems);
+                                            }}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Icon</label>
+                                            <select
+                                                value={item.icon || 'Star'}
+                                                onChange={(e) => {
+                                                    const newItems = [...statsItems];
+                                                    newItems[idx] = { ...item, icon: e.target.value };
+                                                    handleContentChange(fieldName, newItems);
+                                                }}
+                                                className="w-full h-9 rounded-lg border border-gray-200 px-2 text-sm"
+                                            >
+                                                <option value="Users">Users</option>
+                                                <option value="Heart">Heart</option>
+                                                <option value="Star">Star</option>
+                                                <option value="Shield">Shield</option>
+                                                <option value="Award">Award</option>
+                                                <option value="Clock">Clock</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Value</label>
+                                            <input
+                                                type="text"
+                                                value={item.value || ''}
+                                                onChange={(e) => {
+                                                    const newItems = [...statsItems];
+                                                    newItems[idx] = { ...item, value: e.target.value };
+                                                    handleContentChange(fieldName, newItems);
+                                                }}
+                                                className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm"
+                                                placeholder="50+"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs text-gray-500 mb-1">Label</label>
+                                            <input
+                                                type="text"
+                                                value={item.label || ''}
+                                                onChange={(e) => {
+                                                    const newItems = [...statsItems];
+                                                    newItems[idx] = { ...item, label: e.target.value };
+                                                    handleContentChange(fieldName, newItems);
+                                                }}
+                                                className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm"
+                                                placeholder="Happy Customers"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {statsItems.length === 0 && (
+                                <div className="text-center py-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                    <Hash className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-400">No statistics added yet</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+
+            case 'text_array':
+                const textItems = Array.isArray(value) ? value : [];
+                return (
+                    <div key={fieldName} className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                {fieldConfig.label}
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    handleContentChange(fieldName, [...textItems, '']);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-[#c9a962] bg-[#c9a962]/10 rounded-lg hover:bg-[#c9a962]/20 transition-colors"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                Add Item
+                            </button>
+                        </div>
+                        {fieldConfig.hint && (
+                            <p className="text-xs text-gray-400">{fieldConfig.hint}</p>
+                        )}
+                        <div className="space-y-2">
+                            {textItems.map((item: string, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2">
+                                    <input
+                                        type="text"
+                                        value={item}
+                                        onChange={(e) => {
+                                            const newItems = [...textItems];
+                                            newItems[idx] = e.target.value;
+                                            handleContentChange(fieldName, newItems);
+                                        }}
+                                        className="flex-1 h-10 rounded-lg border border-gray-200 px-3 text-sm"
+                                        placeholder={`Item ${idx + 1}`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const newItems = textItems.filter((_: any, i: number) => i !== idx);
+                                            handleContentChange(fieldName, newItems);
+                                        }}
+                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </button>
+                                </div>
+                            ))}
+                            {textItems.length === 0 && (
+                                <div className="text-center py-6 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                                    <List className="h-6 w-6 text-gray-300 mx-auto mb-2" />
+                                    <p className="text-sm text-gray-400">No items added yet</p>
                                 </div>
                             )}
                         </div>
