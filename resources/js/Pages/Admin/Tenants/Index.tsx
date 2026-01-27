@@ -1,8 +1,9 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Plus, Edit, Trash2, Building2, X, Search, Users, Globe, Image as ImageIcon, LayoutTemplate, Copy } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, X, Search, Users, Globe, Image as ImageIcon, LayoutTemplate, Copy, RefreshCw, Database, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
+import { LoadingSpinner, LoadingButton } from '@/Components/LoadingSpinner';
 
 interface Template {
     id: number;
@@ -66,6 +67,14 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
     // Duplicate modal state
     const [isDuplicateModalOpen, setIsDuplicateModalOpen] = useState(false);
     const [duplicatingTenant, setDuplicatingTenant] = useState<Tenant | null>(null);
+
+    // Content Seed modal state
+    const [isSeedModalOpen, setIsSeedModalOpen] = useState(false);
+    const [seedingTenant, setSeedingTenant] = useState<Tenant | null>(null);
+    const [contentStats, setContentStats] = useState<Record<string, number> | null>(null);
+    const [loadingStats, setLoadingStats] = useState(false);
+    const [seedForce, setSeedForce] = useState(false);
+    const [seedProcessing, setSeedProcessing] = useState(false);
 
     const { data, setData, post, put, processing, reset, errors } = useForm({
         name: '',
@@ -189,6 +198,64 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
             },
             onError: () => errorNotification('Failed to duplicate tenant'),
         });
+    };
+
+    // Content Seed handlers
+    const openSeedModal = async (tenant: Tenant) => {
+        setSeedingTenant(tenant);
+        setSeedForce(false);
+        setContentStats(null);
+        setIsSeedModalOpen(true);
+        
+        // Fetch content stats
+        setLoadingStats(true);
+        try {
+            const response = await fetch(`/admin/tenants/${tenant.id}/content-stats`);
+            if (response.ok) {
+                const data = await response.json();
+                setContentStats(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch content stats:', error);
+        } finally {
+            setLoadingStats(false);
+        }
+    };
+
+    const closeSeedModal = () => {
+        setIsSeedModalOpen(false);
+        setSeedingTenant(null);
+        setContentStats(null);
+        setSeedForce(false);
+    };
+
+    const handleSeedContent = async () => {
+        if (!seedingTenant) return;
+        
+        setSeedProcessing(true);
+        try {
+            router.post(`/admin/tenants/${seedingTenant.id}/seed-content`, {
+                force: seedForce,
+            }, {
+                onSuccess: () => {
+                    closeSeedModal();
+                    successNotification(
+                        seedForce 
+                            ? 'Content has been reset! All pages, sections, and sample data have been regenerated.'
+                            : 'Content has been seeded! Missing pages and sections have been created.'
+                    );
+                },
+                onError: () => {
+                    errorNotification('Failed to seed content');
+                },
+                onFinish: () => {
+                    setSeedProcessing(false);
+                },
+            });
+        } catch (error) {
+            setSeedProcessing(false);
+            errorNotification('Failed to seed content');
+        }
     };
 
     return (
@@ -344,6 +411,13 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
                                         title="Duplicate this tenant"
                                     >
                                         <Copy className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => openSeedModal(tenant)}
+                                        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium text-purple-600 bg-purple-50 hover:bg-purple-100 rounded-xl transition-colors"
+                                        title="Seed/Reset content"
+                                    >
+                                        <Database className="h-4 w-4" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(tenant.id, tenant.name)}
@@ -649,9 +723,10 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
                                     <button
                                         type="submit"
                                         disabled={processing}
-                                        className="flex-1 h-12 rounded-xl bg-[#c9a962] text-sm font-bold text-white hover:bg-[#b08d4a] disabled:opacity-50 transition-all shadow-lg shadow-[#c9a962]/20"
+                                        className="flex-1 h-12 rounded-xl bg-[#c9a962] text-sm font-bold text-white hover:bg-[#b08d4a] disabled:opacity-50 transition-all shadow-lg shadow-[#c9a962]/20 flex items-center justify-center gap-2"
                                     >
-                                        {processing ? 'Saving...' : editingTenant ? 'Update Tenant' : 'Create Tenant'}
+                                        {processing && <Loader2 className="h-4 w-4 animate-spin" />}
+                                        {processing ? 'Creating Tenant...' : editingTenant ? 'Update Tenant' : 'Create Tenant'}
                                     </button>
                                 </div>
                             </form>
@@ -750,12 +825,146 @@ export default function Index({ tenants, filters = {}, templates = [] }: Tenants
                                     <button
                                         type="submit"
                                         disabled={duplicateProcessing}
-                                        className="flex-1 h-12 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-600/20"
+                                        className="flex-1 h-12 rounded-xl bg-blue-600 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50 transition-all shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
                                     >
+                                        {duplicateProcessing && <Loader2 className="h-4 w-4 animate-spin" />}
                                         {duplicateProcessing ? 'Duplicating...' : 'Duplicate Tenant'}
                                     </button>
                                 </div>
                             </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Content Seed Modal */}
+            {isSeedModalOpen && seedingTenant && (
+                <div className="fixed inset-0 z-50 overflow-y-auto">
+                    <div className="flex min-h-full items-center justify-center p-4">
+                        <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm" onClick={closeSeedModal} />
+                        <div className="relative w-full max-w-lg transform overflow-hidden rounded-3xl bg-white shadow-2xl transition-all">
+                            {/* Modal Header */}
+                            <div className="relative bg-gradient-to-br from-purple-600 via-purple-500 to-purple-700 px-8 pt-8 pb-6 text-white overflow-hidden">
+                                <div className="absolute inset-0 opacity-10">
+                                    <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -translate-y-1/2 translate-x-1/2" />
+                                    <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+                                </div>
+                                <button
+                                    onClick={closeSeedModal}
+                                    className="absolute top-4 right-4 p-2 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                                <div className="relative">
+                                    <div className="w-14 h-14 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center mb-4 shadow-lg">
+                                        <Database className="h-7 w-7" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold">Seed Content</h2>
+                                    <p className="text-purple-100 mt-1 text-sm">Seed or reset content for "{seedingTenant.name}"</p>
+                                </div>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-8 space-y-6">
+                                {/* Current Content Stats */}
+                                <div>
+                                    <h4 className="text-sm font-semibold text-gray-700 mb-3">Current Content Statistics</h4>
+                                    {loadingStats ? (
+                                        <div className="flex items-center justify-center py-6">
+                                            <RefreshCw className="h-6 w-6 text-purple-500 animate-spin" />
+                                        </div>
+                                    ) : contentStats ? (
+                                        <div className="grid grid-cols-4 gap-3">
+                                            <div className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                                                <div className="text-2xl font-bold text-gray-800">{contentStats.pages || 0}</div>
+                                                <div className="text-xs text-gray-500">Pages</div>
+                                            </div>
+                                            <div className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                                                <div className="text-2xl font-bold text-gray-800">{contentStats.sections || 0}</div>
+                                                <div className="text-xs text-gray-500">Sections</div>
+                                            </div>
+                                            <div className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                                                <div className="text-2xl font-bold text-gray-800">{contentStats.services || 0}</div>
+                                                <div className="text-xs text-gray-500">Services</div>
+                                            </div>
+                                            <div className="text-center p-3 rounded-xl bg-gray-50 border border-gray-100">
+                                                <div className="text-2xl font-bold text-gray-800">{contentStats.team_members || 0}</div>
+                                                <div className="text-xs text-gray-500">Team</div>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+
+                                {/* Seed Options */}
+                                <div className="space-y-4">
+                                    <div className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${!seedForce ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:border-gray-300'}`} onClick={() => setSeedForce(false)}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${!seedForce ? 'border-purple-500 bg-purple-500' : 'border-gray-300'}`}>
+                                                {!seedForce && <div className="w-2 h-2 rounded-full bg-white" />}
+                                            </div>
+                                            <div>
+                                                <h5 className="font-semibold text-gray-800">Seed Missing Content</h5>
+                                                <p className="text-sm text-gray-500 mt-1">Only creates content that doesn't exist. Existing content will be preserved.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div className={`relative p-4 rounded-xl border-2 cursor-pointer transition-all ${seedForce ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-300'}`} onClick={() => setSeedForce(true)}>
+                                        <div className="flex items-start gap-3">
+                                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 ${seedForce ? 'border-red-500 bg-red-500' : 'border-gray-300'}`}>
+                                                {seedForce && <div className="w-2 h-2 rounded-full bg-white" />}
+                                            </div>
+                                            <div>
+                                                <h5 className="font-semibold text-gray-800">Reset All Content</h5>
+                                                <p className="text-sm text-gray-500 mt-1">⚠️ Deletes all sections and regenerates them. Existing customizations will be lost.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* What will be seeded */}
+                                <div className="bg-purple-50 border border-purple-100 rounded-xl p-4">
+                                    <h4 className="text-sm font-semibold text-purple-800 mb-2">What will be created/updated:</h4>
+                                    <ul className="text-xs text-purple-700 space-y-1 grid grid-cols-2 gap-x-4">
+                                        <li>• 6 Pages (Home, About, etc.)</li>
+                                        <li>• Page Sections</li>
+                                        <li>• 3 Service Categories</li>
+                                        <li>• 3 Sample Services</li>
+                                        <li>• 3 Team Members</li>
+                                        <li>• 3 Testimonials</li>
+                                        <li>• 4 FAQs</li>
+                                        <li>• Navigation Menus</li>
+                                    </ul>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-8 py-5 bg-gray-50 border-t border-gray-100 flex gap-4">
+                                <button
+                                    type="button"
+                                    onClick={closeSeedModal}
+                                    className="flex-1 h-12 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-white hover:border-gray-300 transition-all"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSeedContent}
+                                    disabled={seedProcessing}
+                                    className={`flex-1 h-12 rounded-xl text-sm font-bold text-white disabled:opacity-50 transition-all shadow-lg ${seedForce ? 'bg-red-600 hover:bg-red-700 shadow-red-600/20' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-600/20'}`}
+                                >
+                                    {seedProcessing ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <RefreshCw className="h-4 w-4 animate-spin" />
+                                            Processing...
+                                        </span>
+                                    ) : seedForce ? (
+                                        'Reset All Content'
+                                    ) : (
+                                        'Seed Content'
+                                    )}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

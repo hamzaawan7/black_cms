@@ -8,6 +8,7 @@ use App\Http\Requests\Tenant\UpdateTenantRequest;
 use App\Http\Resources\TenantResource;
 use App\Models\Tenant;
 use App\Models\Template;
+use App\Services\TenantContentService;
 use App\Services\TenantService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -233,5 +234,60 @@ class TenantController extends Controller
         }
 
         return back()->with('error', $message);
+    }
+
+    /**
+     * Seed/reset content for a tenant.
+     * Creates pages, sections, sample data.
+     *
+     * @param Request $request
+     * @param Tenant $tenant
+     * @param TenantContentService $contentService
+     * @return RedirectResponse
+     */
+    public function seedContent(Request $request, Tenant $tenant, TenantContentService $contentService): RedirectResponse
+    {
+        $request->validate([
+            'force' => 'sometimes|boolean',
+            'sections_only' => 'sometimes|boolean',
+        ]);
+
+        $force = $request->boolean('force', false);
+
+        try {
+            $contentService->seedForTenant($tenant, [
+                'skip_existing' => !$force,
+            ]);
+
+            $message = $force 
+                ? "Content has been reset for tenant '{$tenant->name}'."
+                : "Content has been seeded for tenant '{$tenant->name}'.";
+
+            return back()->with('success', $message);
+        } catch (\Exception $e) {
+            return back()->with('error', "Failed to seed content: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get content statistics for a tenant (AJAX).
+     *
+     * @param Tenant $tenant
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function contentStats(Tenant $tenant): \Illuminate\Http\JsonResponse
+    {
+        $stats = [
+            'pages' => \App\Models\Page::where('tenant_id', $tenant->id)->count(),
+            'sections' => \App\Models\Section::where('tenant_id', $tenant->id)->count(),
+            'services' => \App\Models\Service::where('tenant_id', $tenant->id)->count(),
+            'service_categories' => \App\Models\ServiceCategory::where('tenant_id', $tenant->id)->count(),
+            'team_members' => \App\Models\TeamMember::where('tenant_id', $tenant->id)->count(),
+            'testimonials' => \App\Models\Testimonial::where('tenant_id', $tenant->id)->count(),
+            'faqs' => \App\Models\Faq::where('tenant_id', $tenant->id)->count(),
+            'menus' => \App\Models\Menu::where('tenant_id', $tenant->id)->count(),
+        ];
+
+        return response()->json($stats);
     }
 }

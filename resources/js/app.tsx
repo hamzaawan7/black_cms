@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createRoot } from 'react-dom/client';
 import { Toaster } from 'react-hot-toast';
+import { LoadingProvider } from '@/contexts/LoadingContext';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -19,7 +20,7 @@ createInertiaApp({
         const root = createRoot(el);
 
         root.render(
-            <>
+            <LoadingProvider>
                 <App {...props} />
                 <Toaster 
                     position="top-right"
@@ -31,10 +32,11 @@ createInertiaApp({
                         },
                     }}
                 />
-            </>
+            </LoadingProvider>
         );
     },
     progress: {
         color: '#c9a962',
+        showSpinner: true,
     },
 });

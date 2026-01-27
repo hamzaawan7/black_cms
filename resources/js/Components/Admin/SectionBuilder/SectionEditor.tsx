@@ -487,6 +487,143 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
                 });
             }
         }
+        // About Hero section (supports both 'about_hero' and 'hero_about' component_types)
+        else if (componentType === 'about_hero' || componentType === 'hero_about') {
+            const hasAboutHero = existingBlocks.some((b: ContentBlock) => b.type === 'about_hero');
+            if (!hasAboutHero) {
+                autoBlocks.push({
+                    id: `block_about_hero_${Date.now()}`,
+                    type: 'about_hero',
+                    data: {
+                        preTitle: sectionContent.pre_title || 'ABOUT US',
+                        title: sectionContent.title || 'Our Story',
+                        description: sectionContent.description || '',
+                        image: sectionContent.image || '',
+                        imageAlt: sectionContent.image_alt || 'About image',
+                        ctaText: sectionContent.cta_text || '',
+                        ctaLink: sectionContent.cta_link || '',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Stats section
+        else if (componentType === 'stats') {
+            const hasStats = existingBlocks.some((b: ContentBlock) => b.type === 'stats');
+            if (!hasStats) {
+                const items = sectionContent.items || [];
+                autoBlocks.push({
+                    id: `block_stats_${Date.now()}`,
+                    type: 'stats',
+                    data: {
+                        items: items.length > 0 ? items.map((item: any) => ({
+                            icon: item.icon || 'Star',
+                            value: item.value || '0',
+                            label: item.label || 'Stat',
+                        })) : [
+                            { icon: 'Users', value: '50+', label: 'Team Members' },
+                            { icon: 'Heart', value: '1000+', label: 'Happy Customers' },
+                            { icon: 'Star', value: '4.9', label: 'Average Rating' },
+                        ],
+                        columns: sectionContent.columns || 4,
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Mission section
+        else if (componentType === 'mission') {
+            const hasMission = existingBlocks.some((b: ContentBlock) => b.type === 'mission_section');
+            if (!hasMission) {
+                autoBlocks.push({
+                    id: `block_mission_${Date.now()}`,
+                    type: 'mission_section',
+                    data: {
+                        title: sectionContent.title || 'Our Mission',
+                        description: sectionContent.description || '',
+                        image: sectionContent.image || '',
+                        imageAlt: sectionContent.image_alt || 'Mission image',
+                        points: sectionContent.points || ['Quality Service', 'Expert Team', 'Fast Delivery'],
+                        imagePosition: sectionContent.image_position || 'right',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Values section
+        else if (componentType === 'values') {
+            const hasValues = existingBlocks.some((b: ContentBlock) => b.type === 'values_cards');
+            if (!hasValues) {
+                const items = sectionContent.items || [];
+                autoBlocks.push({
+                    id: `block_values_${Date.now()}`,
+                    type: 'values_cards',
+                    data: {
+                        title: sectionContent.title || 'Our Values',
+                        description: sectionContent.description || '',
+                        items: items.length > 0 ? items.map((item: any) => ({
+                            icon: item.icon || 'Star',
+                            title: item.title || 'Value',
+                            description: item.description || '',
+                        })) : [
+                            { icon: 'Target', title: 'Customer-Centered', description: 'Your goals guide everything we do' },
+                            { icon: 'Zap', title: 'Innovation', description: 'Cutting-edge solutions' },
+                            { icon: 'Shield', title: 'Trust', description: 'Reliable service you can count on' },
+                        ],
+                        columns: sectionContent.columns || 3,
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Process section (How it works)
+        else if (componentType === 'process') {
+            const hasProcess = existingBlocks.some((b: ContentBlock) => b.type === 'process_steps');
+            if (!hasProcess) {
+                const steps = sectionContent.steps || [];
+                autoBlocks.push({
+                    id: `block_process_${Date.now()}`,
+                    type: 'process_steps',
+                    data: {
+                        title: sectionContent.title || 'How It Works',
+                        description: sectionContent.description || '',
+                        steps: steps.length > 0 ? steps.map((step: any) => ({
+                            step: step.step || '01',
+                            title: step.title || 'Step',
+                            description: Array.isArray(step.description) ? step.description : [step.description || ''],
+                            image: step.image || '',
+                        })) : [
+                            { step: '01', title: 'Intake', description: ['A short intake process', 'to assess your needs'], image: '' },
+                            { step: '02', title: 'Review', description: ['Our team reviews', 'your request'], image: '' },
+                            { step: '03', title: 'Deliver', description: ['We deliver your solution', 'straight to you'], image: '' },
+                        ],
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // CTA section (supports both 'cta' and 'cta_about' component_types)
+        else if (componentType === 'cta' || componentType === 'cta_about') {
+            const hasCta = existingBlocks.some((b: ContentBlock) => b.type === 'cta_section');
+            if (!hasCta) {
+                autoBlocks.push({
+                    id: `block_cta_${Date.now()}`,
+                    type: 'cta_section',
+                    data: {
+                        preTitle: sectionContent.pre_title || '',
+                        title: sectionContent.title || 'Ready to Get Started?',
+                        description: sectionContent.description || '',
+                        buttonText: sectionContent.button_text || 'GET STARTED',
+                        buttonLink: sectionContent.button_link || '/contact',
+                        secondaryButtonText: sectionContent.secondary_button_text || '',
+                        secondaryButtonLink: sectionContent.secondary_button_link || '',
+                        backgroundImage: sectionContent.background_image || '',
+                        variant: sectionContent.variant || 'default',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
         
         return autoBlocks;
     };

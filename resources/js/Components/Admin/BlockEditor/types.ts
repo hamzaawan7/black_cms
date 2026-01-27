@@ -229,10 +229,14 @@ export interface AboutHeroBlockData {
   preTitle?: string;
   title?: string;
   description?: string;
+  image?: string;
+  imageAlt?: string;
   primaryCtaText?: string;
   primaryCtaLink?: string;
   secondaryCtaText?: string;
   secondaryCtaLink?: string;
+  ctaText?: string;  // Alternative field name
+  ctaLink?: string;  // Alternative field name
 }
 
 export interface MissionPointData {
@@ -245,7 +249,9 @@ export interface MissionSectionBlockData {
   description?: string;
   secondaryDescription?: string;
   image?: string;
-  points: MissionPointData[];
+  imageAlt?: string;
+  imagePosition?: 'left' | 'right';
+  points: MissionPointData[] | string[];  // Support both formats
 }
 
 export interface ValueItemData {
@@ -257,7 +263,9 @@ export interface ValueItemData {
 export interface ValuesCardsBlockData {
   preTitle?: string;
   title?: string;
+  description?: string;
   items: ValueItemData[];
+  columns?: number;
 }
 
 export interface ProcessStepData {
@@ -282,6 +290,12 @@ export interface CtaSectionBlockData {
   primaryCtaLink?: string;
   secondaryCtaText?: string;
   secondaryCtaLink?: string;
+  buttonText?: string;  // Alternative field name
+  buttonLink?: string;  // Alternative field name
+  secondaryButtonText?: string;  // Alternative field name
+  secondaryButtonLink?: string;  // Alternative field name
+  backgroundImage?: string;
+  variant?: 'default' | 'dark' | 'gradient';
 }
 
 // Services Page Block Types

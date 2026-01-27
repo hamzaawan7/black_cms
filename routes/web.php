@@ -115,6 +115,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/tenants/{tenant}/toggle-active', [TenantController::class, 'toggleActive'])->name('tenants.toggle-active');
             Route::post('/tenants/{tenant}/duplicate', [TenantController::class, 'duplicate'])->name('tenants.duplicate');
             Route::post('/tenants/{tenant}/verify-domain', [TenantController::class, 'verifyDomain'])->name('tenants.verify-domain');
+            Route::post('/tenants/{tenant}/seed-content', [TenantController::class, 'seedContent'])->name('tenants.seed-content');
+            Route::get('/tenants/{tenant}/content-stats', [TenantController::class, 'contentStats'])->name('tenants.content-stats');
             
             // Templates
             Route::resource('templates', TemplateController::class);
