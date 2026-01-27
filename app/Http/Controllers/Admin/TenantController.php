@@ -210,4 +210,28 @@ class TenantController extends Controller
             return back()->with('error', "Failed to duplicate tenant: " . $e->getMessage());
         }
     }
+
+    /**
+     * Verify domain DNS setup for a tenant.
+     * Checks if domain is pointing to the frontend host.
+     *
+     * @param Tenant $tenant
+     * @return RedirectResponse
+     */
+    public function verifyDomain(Tenant $tenant): RedirectResponse
+    {
+        $result = $this->tenantService->verifyDomainSetup($tenant);
+
+        if ($result['success']) {
+            return back()->with('success', $result['message']);
+        }
+
+        // Build helpful error message with instructions
+        $message = $result['message'];
+        if (isset($result['instructions'])) {
+            $message .= "\n\nSteps to fix:\n" . implode("\n", $result['instructions']['steps']);
+        }
+
+        return back()->with('error', $message);
+    }
 }

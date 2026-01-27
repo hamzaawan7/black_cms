@@ -18,6 +18,7 @@ import {
     Copy,
     Package,
 } from 'lucide-react';
+import RichTextEditor from './RichTextEditor';
 import {
     ContentBlock,
     BlockType,
@@ -186,6 +187,10 @@ export default function BlockFieldEditor({ block, onSave, onClose }: BlockFieldE
                 return renderPartnerSignupCommunityFields();
             case 'partner_signup_cta':
                 return renderPartnerSignupCtaFields();
+            case 'legal_hero':
+                return renderLegalHeroFields();
+            case 'legal_content':
+                return renderLegalContentFields();
             case 'cards':
                 return renderCardsFields();
             case 'list':
@@ -245,15 +250,15 @@ export default function BlockFieldEditor({ block, onSave, onClose }: BlockFieldE
         </div>
     );
 
-    // Text Fields
+    // Text Fields - with WYSIWYG Editor
     const renderTextFields = () => (
         <div className="space-y-4">
             <FormField label="Text Content">
-                <Textarea
+                <RichTextEditor
                     value={data.content || ''}
                     onChange={(val) => updateData('content', val)}
-                    rows={5}
                     placeholder="Enter your text..."
+                    minHeight="150px"
                 />
             </FormField>
             <div className="grid grid-cols-2 gap-4">
@@ -4304,6 +4309,168 @@ export default function BlockFieldEditor({ block, onSave, onClose }: BlockFieldE
                         />
                     </div>
                 </div>
+            </div>
+        );
+    };
+
+    // Legal Hero Fields
+    const renderLegalHeroFields = () => {
+        return (
+            <div className="space-y-4">
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                        Pre-Title
+                    </label>
+                    <input
+                        type="text"
+                        value={data.preTitle || ''}
+                        onChange={(e) => updateData('preTitle', e.target.value)}
+                        className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:border-[#c9a962] focus:outline-none"
+                        placeholder="LEGAL"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                        Title
+                    </label>
+                    <input
+                        type="text"
+                        value={data.title || ''}
+                        onChange={(e) => updateData('title', e.target.value)}
+                        className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:border-[#c9a962] focus:outline-none"
+                        placeholder="Privacy Policy"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                        Description
+                    </label>
+                    <textarea
+                        value={data.description || ''}
+                        onChange={(e) => updateData('description', e.target.value)}
+                        className="w-full h-20 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-[#c9a962] focus:outline-none resize-none"
+                        placeholder="Your privacy is important to us..."
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1 uppercase tracking-wide">
+                        Last Updated
+                    </label>
+                    <input
+                        type="text"
+                        value={data.lastUpdated || ''}
+                        onChange={(e) => updateData('lastUpdated', e.target.value)}
+                        className="w-full h-9 rounded-lg border border-gray-200 px-3 text-sm focus:border-[#c9a962] focus:outline-none"
+                        placeholder="January 27, 2026"
+                    />
+                </div>
+            </div>
+        );
+    };
+
+    // Legal Content Fields
+    const renderLegalContentFields = () => {
+        const sections = data.sections || [];
+
+        const addSection = () => {
+            const newSection = {
+                id: `section_${Date.now()}`,
+                title: '',
+                content: '',
+            };
+            updateData('sections', [...sections, newSection]);
+        };
+
+        const updateSection = (index: number, field: string, value: string) => {
+            const updated = sections.map((s: any, i: number) => 
+                i === index ? { ...s, [field]: value } : s
+            );
+            updateData('sections', updated);
+        };
+
+        const removeSection = (index: number) => {
+            const updated = sections.filter((_: any, i: number) => i !== index);
+            updateData('sections', updated);
+        };
+
+        const moveSection = (index: number, direction: 'up' | 'down') => {
+            const newIndex = direction === 'up' ? index - 1 : index + 1;
+            if (newIndex < 0 || newIndex >= sections.length) return;
+            const updated = [...sections];
+            [updated[index], updated[newIndex]] = [updated[newIndex], updated[index]];
+            updateData('sections', updated);
+        };
+
+        return (
+            <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide">
+                        Content Sections ({sections.length})
+                    </label>
+                    <button
+                        type="button"
+                        onClick={addSection}
+                        className="text-xs bg-[#c9a962] text-white px-3 py-1.5 rounded-lg hover:bg-[#b89952] transition-colors"
+                    >
+                        + Add Section
+                    </button>
+                </div>
+
+                {sections.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-4 border border-dashed border-gray-200 rounded-lg">
+                        No sections yet. Click "Add Section" to create one.
+                    </p>
+                ) : (
+                    <div className="space-y-4 max-h-96 overflow-y-auto pr-2">
+                        {sections.map((section: any, index: number) => (
+                            <div key={section.id || index} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-xs font-medium text-gray-600">Section {index + 1}</span>
+                                    <div className="flex items-center gap-1">
+                                        <button
+                                            type="button"
+                                            onClick={() => moveSection(index, 'up')}
+                                            disabled={index === 0}
+                                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                        >
+                                            ↑
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => moveSection(index, 'down')}
+                                            disabled={index === sections.length - 1}
+                                            className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30"
+                                        >
+                                            ↓
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeSection(index)}
+                                            className="p-1 text-red-400 hover:text-red-600"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="space-y-3">
+                                    <input
+                                        type="text"
+                                        value={section.title || ''}
+                                        onChange={(e) => updateSection(index, 'title', e.target.value)}
+                                        className="w-full h-8 rounded border border-gray-200 px-2 text-sm focus:border-[#c9a962] focus:outline-none"
+                                        placeholder="Section Title (e.g., 1. Information We Collect)"
+                                    />
+                                    <RichTextEditor
+                                        value={section.content || ''}
+                                        onChange={(val) => updateSection(index, 'content', val)}
+                                        placeholder="Enter section content..."
+                                        minHeight="120px"
+                                    />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         );
     };

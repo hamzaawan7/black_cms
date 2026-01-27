@@ -43,6 +43,8 @@ export type BlockType =
   | 'partner_signup_steps'
   | 'partner_signup_community'
   | 'partner_signup_cta'
+  | 'legal_hero'
+  | 'legal_content'
   | 'cards'
   | 'list'
   | 'stats'
@@ -295,10 +297,15 @@ export interface ServicesHeroBlockData {
   title?: string;
   titleHighlight?: string;
   description?: string;
+  backgroundImage?: string;
 }
 
 export interface ServicesCategoriesBlockData {
+  title?: string;
+  description?: string;
   categories: ServicesCategoryItemData[];
+  showImages?: boolean;
+  columns?: number;
 }
 
 export interface ServicesCtaBlockData {
@@ -339,11 +346,19 @@ export interface ContactHeroBlockData {
   preTitle?: string;
   title?: string;
   description?: string;
+  backgroundImage?: string;
 }
 
 export interface ContactFormBlockData {
   title?: string;
   subtitle?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  formTitle?: string;
+  submitButtonText?: string;
+  showMap?: boolean;
+  mapEmbedUrl?: string;
   successTitle?: string;
   successMessage?: string;
   submitText?: string;
@@ -565,6 +580,27 @@ export interface IconBlockData {
 }
 
 // ============================================
+// Legal Page Block Data Interfaces
+// ============================================
+
+export interface LegalHeroBlockData {
+  preTitle?: string;
+  title?: string;
+  description?: string;
+  lastUpdated?: string;
+}
+
+export interface LegalContentSectionData {
+  id: string;
+  title: string;
+  content: string;
+}
+
+export interface LegalContentBlockData {
+  sections: LegalContentSectionData[];
+}
+
+// ============================================
 // Union Type for Block Data
 // ============================================
 
@@ -610,7 +646,9 @@ export type BlockData =
   | PartnerSignupBenefitsBlockData
   | PartnerSignupStepsBlockData
   | PartnerSignupCommunityBlockData
-  | PartnerSignupCtaBlockData;
+  | PartnerSignupCtaBlockData
+  | LegalHeroBlockData
+  | LegalContentBlockData;
 
 // ============================================
 // Content Block Interface

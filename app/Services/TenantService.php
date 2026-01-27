@@ -111,6 +111,14 @@ class TenantService
 
     /**
      * Create a new tenant.
+     * 
+     * VPS/NGINX APPROACH:
+     * - Creates tenant record in database
+     * - Generates NGINX config file for the domain
+     * - NGINX config points to tenant's template directory
+     * - Client points DNS A record to VPS IP
+     * - Domain resolves to correct tenant content
+     * - Tenant admin can manage isolated content
      */
     public function create(array $data): Tenant
     {
@@ -124,21 +132,42 @@ class TenantService
             $data['api_base_url'] = config('app.url') . '/api/v1';
         }
 
-        // Set deployment path based on tenant slug
-        $basePath = config('app.deployment_base_path', '/var/www/templates');
-        $data['deployment_path'] = "{$basePath}/{$data['slug']}";
-
         $tenant = Tenant::create($data);
 
         // Generate API key for the tenant
         $tenant->regenerateApiKey();
 
-        // If domain is provided, copy frontend files (not symlink - Hostinger blocks symlinks)
+        // Process domain and generate NGINX config
         if (!empty($data['domain'])) {
-            $this->copyFrontendFiles($tenant);
+            $cleanDomain = preg_replace('#^https?://#', '', $data['domain']);
+            $cleanDomain = rtrim($cleanDomain, '/');
+            
+            // Get deployment path for this tenant
+            $deploymentPath = $this->deploymentService->getDeploymentPath($tenant);
+            
+            // Generate NGINX configuration file
+            $nginxResult = $this->nginxService->generateConfig($tenant, $cleanDomain, $deploymentPath);
+            
+            // Update tenant with NGINX config info
+            $tenant->update([
+                'domain' => $cleanDomain,
+                'frontend_url' => "https://{$cleanDomain}",
+                'nginx_config_path' => $nginxResult['config_path'] ?? null,
+                'nginx_config_file' => $nginxResult['config_file'] ?? null,
+                'nginx_status' => $nginxResult['success'] ? 'configured' : 'failed',
+                'deployment_status' => 'pending_dns', // Waiting for client to point DNS to VPS
+            ]);
+
+            // Log DNS instructions for admin
+            $serverIp = config('app.server_ip', 'YOUR_VPS_IP');
+            \Log::info("Tenant {$tenant->id} created. NGINX configured. DNS Setup Required:", [
+                'domain' => $cleanDomain,
+                'nginx_config' => $nginxResult['config_path'] ?? 'N/A',
+                'action' => "Point {$cleanDomain} A record to {$serverIp}",
+            ]);
         }
 
-        // If template is assigned, trigger deployment
+        // If template is assigned, trigger full deployment (copies template files + NGINX for all domains)
         if ($tenant->active_template_id && $tenant->activeTemplate) {
             $this->deploymentService->deployTemplate($tenant, $tenant->activeTemplate);
         }
@@ -359,108 +388,6 @@ class TenantService
     }
 
     /**
-     * Create symbolic link for domain to point to frontend folder.
-     * This is for shared hosting where NGINX control is not available.
-     */
-    public function createDomainSymlink(Tenant $tenant, string $domain): array
-    {
-        try {
-            // Get paths from config
-            $domainsBasePath = config('app.domains_base_path', '/home/u938549775/domains');
-            $frontendPath = config('app.frontend_public_html', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html');
-            
-            // Clean domain name (remove protocol if any)
-            $cleanDomain = preg_replace('#^https?://#', '', $domain);
-            $cleanDomain = rtrim($cleanDomain, '/');
-            
-            $domainPath = "{$domainsBasePath}/{$cleanDomain}";
-            $publicHtmlPath = "{$domainPath}/public_html";
-            
-            // Check if domain folder exists (created by Hostinger when domain is added)
-            if (!is_dir($domainPath)) {
-                \Log::warning("Domain folder does not exist yet: {$domainPath}. Domain must be added in Hostinger panel first.");
-                return [
-                    'success' => false,
-                    'message' => "Domain folder not found. Please add '{$cleanDomain}' in Hostinger panel first.",
-                    'domain_path' => $domainPath,
-                ];
-            }
-            
-            // Check if public_html already exists
-            if (is_link($publicHtmlPath)) {
-                // Already a symlink, check if pointing to correct location
-                $currentTarget = readlink($publicHtmlPath);
-                if ($currentTarget === $frontendPath) {
-                    \Log::info("Symlink already exists and points to correct location: {$publicHtmlPath}");
-                    return [
-                        'success' => true,
-                        'message' => 'Symlink already configured correctly',
-                        'symlink_path' => $publicHtmlPath,
-                    ];
-                }
-                // Remove incorrect symlink
-                unlink($publicHtmlPath);
-            } elseif (is_dir($publicHtmlPath)) {
-                // Regular directory exists, need to remove it
-                // Be careful - only remove if empty or contains default files
-                $files = scandir($publicHtmlPath);
-                $defaultFiles = ['.', '..', 'index.html', '.htaccess', 'default.html'];
-                $hasCustomFiles = false;
-                
-                foreach ($files as $file) {
-                    if (!in_array($file, $defaultFiles)) {
-                        $hasCustomFiles = true;
-                        break;
-                    }
-                }
-                
-                if ($hasCustomFiles) {
-                    \Log::warning("Cannot create symlink - public_html contains custom files: {$publicHtmlPath}");
-                    return [
-                        'success' => false,
-                        'message' => 'public_html folder contains custom files. Please backup and remove manually.',
-                        'public_html_path' => $publicHtmlPath,
-                    ];
-                }
-                
-                // Remove empty/default public_html directory
-                $this->removeDirectory($publicHtmlPath);
-            }
-            
-            // Create symlink
-            if (symlink($frontendPath, $publicHtmlPath)) {
-                \Log::info("Symlink created successfully: {$publicHtmlPath} -> {$frontendPath}");
-                
-                // Update tenant record
-                $tenant->update([
-                    'frontend_url' => "https://{$cleanDomain}",
-                    'deployment_status' => 'active',
-                ]);
-                
-                return [
-                    'success' => true,
-                    'message' => 'Symlink created successfully',
-                    'symlink_path' => $publicHtmlPath,
-                    'target_path' => $frontendPath,
-                ];
-            } else {
-                \Log::error("Failed to create symlink: {$publicHtmlPath} -> {$frontendPath}");
-                return [
-                    'success' => false,
-                    'message' => 'Failed to create symlink. Check permissions.',
-                ];
-            }
-            
-        } catch (\Exception $e) {
-            \Log::error("Error creating domain symlink: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'Error: ' . $e->getMessage(),
-            ];
-        }
-    }
-
-    /**
      * Remove directory recursively.
      */
     protected function removeDirectory(string $path): bool
@@ -479,293 +406,171 @@ class TenantService
     }
 
     /**
-     * Deploy tenant frontend based on hosting mode (VPS or Shared).
+     * Verify DNS setup for a tenant domain.
      * 
-     * VPS Mode: Creates Nginx config, generates SSL
-     * Shared Mode: Copies frontend files to tenant's domain folder
+     * VPS/NGINX APPROACH:
+     * - Check if domain A record points to VPS IP
+     * - If yes, mark DNS verified and trigger SSL generation
      */
-    public function deployTenantFrontend(Tenant $tenant): array
-    {
-        $hostingMode = config('app.hosting_mode', 'shared');
-        
-        if ($hostingMode === 'vps') {
-            return $this->deployVPS($tenant);
-        }
-        
-        return $this->copyFrontendFiles($tenant);
-    }
-    
-    /**
-     * Deploy tenant for VPS mode (Nginx config + SSL).
-     */
-    protected function deployVPS(Tenant $tenant): array
+    public function verifyDomainSetup(Tenant $tenant): array
     {
         if (!$tenant->domain) {
-            return ['success' => false, 'message' => 'No domain configured'];
-        }
-        
-        try {
-            // Step 1: Check DNS (optional - just log warning if not pointing)
-            $dnsCheck = $this->checkDNS($tenant->domain);
-            if (!$dnsCheck['success']) {
-                \Log::warning("DNS not yet pointing for {$tenant->domain}: {$dnsCheck['message']}");
-            }
-            
-            // Step 2: Generate Nginx config
-            $frontendPath = config('app.vps_frontend_path', '/var/www/frontend/public');
-            $nginxResult = $this->nginxService->generateConfig($tenant, $tenant->domain, dirname($frontendPath));
-            
-            if (!$nginxResult['success']) {
-                return [
-                    'success' => false,
-                    'message' => 'Failed to create Nginx config: ' . ($nginxResult['error'] ?? 'Unknown error'),
-                ];
-            }
-            
-            // Step 3: Generate SSL (only if DNS is pointing)
-            if ($dnsCheck['success']) {
-                $email = config('app.ssl_admin_email', 'admin@example.com');
-                $sslResult = $this->nginxService->generateSslCertificate($tenant->domain, $email);
-                
-                if ($sslResult['success']) {
-                    $tenant->update(['ssl_status' => 'active']);
-                } else {
-                    \Log::warning("SSL generation pending for {$tenant->domain}: {$sslResult['message']}");
-                }
-            }
-            
-            // Update tenant status
-            $tenant->update([
-                'nginx_status' => 'active',
-                'dns_verified' => $dnsCheck['success'],
-            ]);
-            
-            \Log::info("VPS deployment successful for tenant {$tenant->id}: {$tenant->domain}");
-            
-            return [
-                'success' => true,
-                'message' => 'VPS deployment successful',
-                'nginx_config' => $nginxResult['config_path'] ?? null,
-                'dns_verified' => $dnsCheck['success'],
-                'ssl_status' => $tenant->ssl_status,
-            ];
-            
-        } catch (\Exception $e) {
-            \Log::error("VPS deployment failed for tenant {$tenant->id}: " . $e->getMessage());
-            return [
-                'success' => false,
-                'message' => 'VPS deployment error: ' . $e->getMessage(),
-            ];
-        }
-    }
-    
-    /**
-     * Check if domain DNS is pointing to this server.
-     */
-    protected function checkDNS(string $domain): array
-    {
-        $domain = preg_replace('#^https?://#', '', $domain);
-        $domain = rtrim($domain, '/');
-        
-        $serverIP = config('app.server_ip');
-        
-        // If no server IP configured, try to get it
-        if (!$serverIP) {
-            $serverIP = @file_get_contents('https://api.ipify.org') ?: null;
-        }
-        
-        if (!$serverIP) {
-            return ['success' => false, 'message' => 'Could not determine server IP'];
-        }
-        
-        $domainIP = @gethostbyname($domain);
-        
-        if ($domainIP === $domain) {
-            return [
-                'success' => false,
-                'message' => 'Domain DNS not configured',
-                'server_ip' => $serverIP,
-            ];
-        }
-        
-        $isPointing = ($domainIP === $serverIP);
-        
-        return [
-            'success' => $isPointing,
-            'message' => $isPointing ? 'DNS verified' : 'DNS pointing to different IP',
-            'server_ip' => $serverIP,
-            'domain_ip' => $domainIP,
-        ];
-    }
-
-    /**
-     * Copy frontend files from main tenant domain to new tenant domain.
-     * This is for shared hosting (Hostinger) where symlinks don't work properly.
-     * Includes retry mechanism for network/IO failures.
-     */
-    public function copyFrontendFiles(Tenant $tenant, int $maxRetries = 3): array
-    {
-        if (!$tenant->domain) {
-            return ['success' => false, 'message' => 'No domain configured'];
+            return ['success' => false, 'message' => 'No domain configured for this tenant'];
         }
 
-        $lastError = null;
-        
-        for ($attempt = 1; $attempt <= $maxRetries; $attempt++) {
-            try {
-                \Log::info("Copying frontend files for tenant {$tenant->id}, attempt {$attempt}/{$maxRetries}");
-                
-                $result = $this->executeCopyFrontendFiles($tenant);
-                
-                if ($result['success']) {
-                    return $result;
-                }
-                
-                $lastError = $result['message'];
-                
-            } catch (\Exception $e) {
-                $lastError = $e->getMessage();
-                \Log::warning("Frontend copy attempt {$attempt} failed: {$lastError}");
-            }
-            
-            // Wait before retry (exponential backoff: 1s, 2s, 4s)
-            if ($attempt < $maxRetries) {
-                sleep(pow(2, $attempt - 1));
-            }
-        }
-        
-        \Log::error("Frontend copy failed after {$maxRetries} attempts: {$lastError}");
-        return [
-            'success' => false,
-            'message' => "Failed after {$maxRetries} attempts: {$lastError}",
-        ];
-    }
-    
-    /**
-     * Execute the actual frontend file copy.
-     */
-    protected function executeCopyFrontendFiles(Tenant $tenant): array
-    {
-        $domainsBasePath = config('app.domains_base_path', '/home/u938549775/domains');
-        $mainFrontendPath = config('app.frontend_public_html', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html');
-        
-        // Clean domain name
         $cleanDomain = preg_replace('#^https?://#', '', $tenant->domain);
         $cleanDomain = rtrim($cleanDomain, '/');
+
+        // Get expected VPS IP from config
+        $vpsIP = config('app.server_ip');
         
-        $targetPath = "{$domainsBasePath}/{$cleanDomain}/public_html";
-        
-        // Check if source exists
-        if (!is_dir($mainFrontendPath)) {
-            \Log::error("Main frontend path does not exist: {$mainFrontendPath}");
+        if (!$vpsIP) {
             return [
                 'success' => false,
-                'message' => "Source frontend path not found: {$mainFrontendPath}",
+                'message' => 'VPS_SERVER_IP not configured in .env',
             ];
         }
-        
-        // Check if target domain folder exists
-        $domainFolder = "{$domainsBasePath}/{$cleanDomain}";
-        if (!is_dir($domainFolder)) {
-            \Log::warning("Domain folder does not exist: {$domainFolder}. Domain must be added in Hostinger panel first.");
+
+        // Check DNS A record
+        $resolvedIP = @gethostbyname($cleanDomain);
+        $domainResolves = ($resolvedIP !== $cleanDomain);
+
+        $dnsInfo = [
+            'domain' => $cleanDomain,
+            'resolved_ip' => $domainResolves ? $resolvedIP : null,
+            'expected_ip' => $vpsIP,
+            'match' => ($resolvedIP === $vpsIP),
+        ];
+
+        if (!$domainResolves) {
             return [
                 'success' => false,
-                'message' => "Domain folder not found. Please add '{$cleanDomain}' in Hostinger panel first.",
+                'status' => 'dns_not_configured',
+                'message' => "Domain {$cleanDomain} DNS not configured yet",
+                'instructions' => $this->getDNSInstructions($cleanDomain),
+                'dns_info' => $dnsInfo,
             ];
         }
-        
-        // Remove existing public_html (symlink or directory)
-        if (is_link($targetPath)) {
-            unlink($targetPath); // Remove symlink
-        } elseif (is_dir($targetPath)) {
-            $this->removeDirectory($targetPath);
-        }
-        
-        // Create target directory
-        if (!mkdir($targetPath, 0755, true) && !is_dir($targetPath)) {
+
+        // Check if IP matches VPS IP
+        if ($resolvedIP !== $vpsIP) {
             return [
                 'success' => false,
-                'message' => "Failed to create target directory: {$targetPath}",
+                'status' => 'dns_wrong_ip',
+                'message' => "Domain points to {$resolvedIP}, expected {$vpsIP}",
+                'instructions' => $this->getDNSInstructions($cleanDomain),
+                'dns_info' => $dnsInfo,
             ];
         }
-        
-        // Copy all files recursively
-        $this->copyDirectoryRecursive($mainFrontendPath, $targetPath);
-        
-        // Update tenant record
+
+        // DNS is pointing correctly! Update tenant
         $tenant->update([
-            'frontend_url' => "https://{$cleanDomain}",
-            'deployment_status' => 'active',
-            'deployed_at' => now(),
+            'dns_verified' => true,
+            'dns_verified_at' => now(),
         ]);
-        
-        \Log::info("Frontend files copied successfully: {$mainFrontendPath} -> {$targetPath}");
-        
+
+        // Try to reach the domain (check if NGINX + SSL working)
+        $isHttpsReachable = $this->checkDomainReachable($cleanDomain, true);
+        $isHttpReachable = $this->checkDomainReachable($cleanDomain, false);
+
+        if ($isHttpsReachable) {
+            // Fully working with SSL!
+            $tenant->update([
+                'deployment_status' => 'active',
+                'ssl_status' => 'active',
+            ]);
+
+            return [
+                'success' => true,
+                'status' => 'active',
+                'message' => "Domain {$cleanDomain} is live with SSL!",
+                'url' => "https://{$cleanDomain}",
+                'dns_info' => $dnsInfo,
+            ];
+        }
+
+        if ($isHttpReachable) {
+            // HTTP works, SSL needed
+            $tenant->update([
+                'deployment_status' => 'pending_ssl',
+                'ssl_status' => 'pending',
+            ]);
+
+            return [
+                'success' => false,
+                'status' => 'pending_ssl',
+                'message' => "Domain DNS verified! HTTP works. SSL certificate needed.",
+                'ssl_command' => "sudo certbot --nginx -d {$cleanDomain} -d www.{$cleanDomain}",
+                'dns_info' => $dnsInfo,
+            ];
+        }
+
+        // DNS correct but not reachable yet (propagating or NGINX issue)
+        $tenant->update([
+            'deployment_status' => 'dns_verified',
+        ]);
+
         return [
-            'success' => true,
-            'message' => 'Frontend files copied successfully',
-            'source_path' => $mainFrontendPath,
-            'target_path' => $targetPath,
+            'success' => false,
+            'status' => 'dns_propagating',
+            'message' => "DNS pointing correctly to VPS. Waiting for propagation or check NGINX config.",
+            'nginx_check' => "sudo nginx -t && sudo systemctl status nginx",
+            'dns_info' => $dnsInfo,
         ];
     }
 
     /**
-     * Copy directory recursively.
+     * Check if a domain is reachable via HTTP/HTTPS
      */
-    protected function copyDirectoryRecursive(string $source, string $destination): void
+    protected function checkDomainReachable(string $domain, bool $https = true): bool
     {
-        $dir = opendir($source);
-        
-        if (!is_dir($destination)) {
-            mkdir($destination, 0755, true);
+        try {
+            $protocol = $https ? 'https' : 'http';
+            $ch = curl_init("{$protocol}://{$domain}");
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT => 10,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_SSL_VERIFYPEER => false,
+                CURLOPT_NOBODY => true, // HEAD request only
+            ]);
+            curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            return ($httpCode >= 200 && $httpCode < 500);
+        } catch (\Exception $e) {
+            return false;
         }
-        
-        while (($file = readdir($dir)) !== false) {
-            if ($file === '.' || $file === '..') {
-                continue;
-            }
-            
-            $srcPath = "{$source}/{$file}";
-            $destPath = "{$destination}/{$file}";
-            
-            if (is_dir($srcPath)) {
-                $this->copyDirectoryRecursive($srcPath, $destPath);
-            } else {
-                copy($srcPath, $destPath);
-            }
-        }
-        
-        closedir($dir);
     }
 
     /**
-     * Generate NGINX configuration for a tenant.
+     * Get DNS setup instructions for a domain (VPS approach).
      */
-    public function generateNginxForTenant(Tenant $tenant): array
+    protected function getDNSInstructions(string $domain): array
     {
-        if (!$tenant->domain) {
-            return ['success' => false, 'message' => 'No domain configured'];
-        }
+        $serverIP = config('app.server_ip', 'YOUR_VPS_IP');
 
-        $deploymentPath = $tenant->deployment_path ?? $this->deploymentService->getDeploymentPath($tenant);
-        
-        // Generate NGINX config for primary domain
-        $result = $this->nginxService->generateConfig($tenant, $tenant->domain, $deploymentPath);
-        
-        if ($result['success']) {
-            $tenant->update([
-                'nginx_config_path' => $result['config_path'],
-                'deployment_path' => $deploymentPath,
-            ]);
-        }
-
-        // Generate configs for additional domains
-        $additionalDomains = $tenant->additional_domains ?? [];
-        foreach ($additionalDomains as $domain) {
-            $this->nginxService->generateConfig($tenant, $domain, $deploymentPath);
-        }
-
-        return $result;
+        return [
+            'summary' => "Point {$domain} A record to VPS IP: {$serverIP}",
+            'steps' => [
+                "1. Login to your domain registrar (GoDaddy/Namecheap/Hostinger/etc)",
+                "2. Go to DNS Management / DNS Settings",
+                "3. Add or Edit A Record:",
+                "   - Type: A",
+                "   - Name: @ (or leave blank for root domain)",
+                "   - Value: {$serverIP}",
+                "   - TTL: 600 (or 1 hour)",
+                "4. Add A Record for www:",
+                "   - Type: A", 
+                "   - Name: www",
+                "   - Value: {$serverIP}",
+                "   - TTL: 600",
+                "5. Save and wait 5-30 minutes for DNS propagation",
+                "6. Run: php artisan tenant:verify --pending",
+            ],
+            'vps_ip' => $serverIP,
+        ];
     }
 
     /**
@@ -779,14 +584,16 @@ class TenantService
         $tenant->update($data);
         $tenant->refresh();
 
-        // If domain changed, regenerate NGINX config
+        // If domain changed, update frontend URL
         if (isset($data['domain']) && $data['domain'] !== $oldDomain) {
-            // Delete old NGINX config if exists
-            if ($oldDomain) {
-                $this->nginxService->removeConfig($oldDomain);
-            }
-            // Generate new NGINX config
-            $this->generateNginxForTenant($tenant);
+            $cleanDomain = preg_replace('#^https?://#', '', $data['domain']);
+            $cleanDomain = rtrim($cleanDomain, '/');
+            
+            $tenant->update([
+                'frontend_url' => "https://{$cleanDomain}",
+                'deployment_status' => 'pending_dns',
+                'dns_verified' => false,
+            ]);
         }
 
         // If template changed, redeploy

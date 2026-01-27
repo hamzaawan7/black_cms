@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\TeamMemberController;
 use App\Http\Controllers\Admin\TemplateController;
 use App\Http\Controllers\Admin\TenantController;
+use App\Http\Controllers\Admin\TenantSwitcherController;
 use App\Http\Controllers\Admin\TestimonialController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\WebhookController;
@@ -113,10 +114,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::resource('tenants', TenantController::class);
             Route::post('/tenants/{tenant}/toggle-active', [TenantController::class, 'toggleActive'])->name('tenants.toggle-active');
             Route::post('/tenants/{tenant}/duplicate', [TenantController::class, 'duplicate'])->name('tenants.duplicate');
+            Route::post('/tenants/{tenant}/verify-domain', [TenantController::class, 'verifyDomain'])->name('tenants.verify-domain');
             
             // Templates
             Route::resource('templates', TemplateController::class);
             Route::post('/templates/{template}/toggle-active', [TemplateController::class, 'toggleActive'])->name('templates.toggle-active');
+            
+            // Tenant Switcher (super_admin can switch between tenants)
+            Route::get('/tenant-switcher', [TenantSwitcherController::class, 'index'])->name('tenant-switcher.index');
+            Route::post('/tenant-switcher/switch', [TenantSwitcherController::class, 'switch'])->name('tenant-switcher.switch');
+            Route::post('/tenant-switcher/reset', [TenantSwitcherController::class, 'reset'])->name('tenant-switcher.reset');
+            Route::get('/tenant-switcher/current', [TenantSwitcherController::class, 'current'])->name('tenant-switcher.current');
         });
         
         // Settings (Admin & Tenant Admin only)

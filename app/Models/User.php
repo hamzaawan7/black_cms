@@ -14,6 +14,14 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     /**
+     * Role constants
+     */
+    public const ROLE_SUPER_ADMIN = 'super_admin';
+    public const ROLE_TENANT_ADMIN = 'tenant_admin';
+    public const ROLE_EDITOR = 'editor';
+    public const ROLE_VIEWER = 'viewer';
+
+    /**
      * The attributes that are mass assignable.
      *
      * @var list<string>
@@ -98,5 +106,55 @@ class User extends Authenticatable
     public function canManageSettings(): bool
     {
         return in_array($this->role, ['super_admin', 'tenant_admin']);
+    }
+
+    /**
+     * Get the active tenant ID for this user.
+     * Super admins can switch tenants via session.
+     */
+    public function getActiveTenantId(): ?int
+    {
+        // Super admin can switch tenants via session
+        if ($this->isSuperAdmin() && session()->has('active_tenant_id')) {
+            return session('active_tenant_id');
+        }
+        
+        return $this->tenant_id;
+    }
+
+    /**
+     * Get the active tenant for this user.
+     */
+    public function getActiveTenant(): ?Tenant
+    {
+        $tenantId = $this->getActiveTenantId();
+        return $tenantId ? Tenant::find($tenantId) : null;
+    }
+
+    /**
+     * Switch to a different tenant (super_admin only).
+     */
+    public function switchTenant(int $tenantId): bool
+    {
+        if (!$this->isSuperAdmin()) {
+            return false;
+        }
+
+        // Verify tenant exists
+        $tenant = Tenant::find($tenantId);
+        if (!$tenant) {
+            return false;
+        }
+
+        session(['active_tenant_id' => $tenantId]);
+        return true;
+    }
+
+    /**
+     * Reset to own tenant.
+     */
+    public function resetTenant(): void
+    {
+        session()->forget('active_tenant_id');
     }
 }

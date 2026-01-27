@@ -11,12 +11,14 @@ class NginxConfigService
     protected string $configPath;
     protected string $sitesAvailablePath;
     protected string $sitesEnabledPath;
+    protected bool $developmentMode;
 
     public function __construct()
     {
-        $this->configPath = config('app.nginx_config_path', '/etc/nginx/conf.d');
-        $this->sitesAvailablePath = config('app.nginx_sites_available', '/etc/nginx/sites-available');
-        $this->sitesEnabledPath = config('app.nginx_sites_enabled', '/etc/nginx/sites-enabled');
+        $this->sitesAvailablePath = config('app.nginx.sites_available', '/etc/nginx/sites-available');
+        $this->sitesEnabledPath = config('app.nginx.sites_enabled', '/etc/nginx/sites-enabled');
+        $this->developmentMode = config('app.nginx.development_mode', true);
+        $this->configPath = $this->sitesAvailablePath;
     }
 
     /**
@@ -27,10 +29,9 @@ class NginxConfigService
         try {
             $configContent = $this->buildConfigContent($tenant, $domain, $deploymentPath);
             $configFileName = $this->sanitizeDomain($domain) . '.conf';
-            $configFilePath = "{$this->sitesAvailablePath}/{$configFileName}";
 
-            // In development, just store the config content
-            if (app()->environment('local', 'development')) {
+            // In development mode, store in storage/nginx instead of /etc/nginx
+            if ($this->developmentMode || app()->environment('local', 'development')) {
                 $storagePath = storage_path("nginx/{$configFileName}");
                 File::ensureDirectoryExists(dirname($storagePath));
                 File::put($storagePath, $configContent);
@@ -43,12 +44,14 @@ class NginxConfigService
                 return [
                     'success' => true,
                     'config_path' => $storagePath,
+                    'config_file' => $configFileName,
                     'config_content' => $configContent,
                     'mode' => 'development',
                 ];
             }
 
             // In production, write to actual NGINX path
+            $configFilePath = "{$this->sitesAvailablePath}/{$configFileName}";
             File::put($configFilePath, $configContent);
 
             // Create symlink to sites-enabled
@@ -68,6 +71,7 @@ class NginxConfigService
             return [
                 'success' => true,
                 'config_path' => $configFilePath,
+                'config_file' => $configFileName,
                 'symlink_path' => $symlinkPath,
                 'mode' => 'production',
             ];

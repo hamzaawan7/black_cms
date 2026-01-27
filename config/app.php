@@ -125,38 +125,38 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Multi-Tenant Hosting Configuration
+    | Multi-Tenant VPS/NGINX Configuration
     |--------------------------------------------------------------------------
     |
-    | Configuration for shared hosting multi-tenant setup.
-    | These paths are used to create symbolic links for tenant domains.
+    | VPS APPROACH: Each tenant gets their own NGINX config file.
+    | - Tenant created → NGINX config auto-generated
+    | - Client points DNS A record to VPS IP
+    | - NGINX serves correct template for each domain
+    | - Tenant admin manages isolated content
     |
     */
 
-    // Hosting mode: 'vps' (Nginx config) or 'shared' (File copy for Hostinger)
-    'hosting_mode' => env('HOSTING_MODE', 'shared'),
+    // VPS Server IP (clients point their DNS A record here)
+    'server_ip' => env('VPS_SERVER_IP', null),
     
-    // VPS Server IP (for DNS verification)
-    'server_ip' => env('SERVER_IP', null),
-
-    // Base path where all domains are stored (Hostinger structure)
-    'domains_base_path' => env('DOMAINS_BASE_PATH', '/home/u938549775/domains'),
-    
-    // Path to the main frontend public_html folder
-    'frontend_public_html' => env('FRONTEND_PUBLIC_HTML', '/home/u938549775/domains/lightgray-stork-866970.hostingersite.com/public_html'),
-    
-    // NGINX configuration paths (for VPS deployments)
-    'nginx_config_path' => env('NGINX_CONFIG_PATH', '/etc/nginx/conf.d'),
-    'nginx_sites_available' => env('NGINX_SITES_AVAILABLE', '/etc/nginx/sites-available'),
-    'nginx_sites_enabled' => env('NGINX_SITES_ENABLED', '/etc/nginx/sites-enabled'),
-    
-    // Deployment base path for templates
+    // Base path where templates are deployed on VPS
+    // Each tenant gets: {deployment_base_path}/{tenant_slug}/
     'deployment_base_path' => env('DEPLOYMENT_BASE_PATH', '/var/www/templates'),
     
-    // Main frontend path (for VPS - single copy shared by all tenants)
-    'vps_frontend_path' => env('VPS_FRONTEND_PATH', '/var/www/frontend/public'),
+    // NGINX configuration paths
+    'nginx' => [
+        // Where NGINX config files are stored
+        'sites_available' => env('NGINX_SITES_AVAILABLE', '/etc/nginx/sites-available'),
+        'sites_enabled' => env('NGINX_SITES_ENABLED', '/etc/nginx/sites-enabled'),
+        
+        // Development mode: store configs in storage/nginx instead of /etc/nginx
+        'development_mode' => env('NGINX_DEV_MODE', true),
+    ],
     
-    // Admin email for SSL certificates
-    'ssl_admin_email' => env('SSL_ADMIN_EMAIL', 'admin@example.com'),
-
+    // SSL Configuration (Let's Encrypt)
+    'ssl' => [
+        'enabled' => env('SSL_ENABLED', true),
+        'admin_email' => env('SSL_ADMIN_EMAIL', 'admin@example.com'),
+        'auto_generate' => env('SSL_AUTO_GENERATE', false), // Auto-generate SSL after DNS verified
+    ],
 ];

@@ -3,6 +3,7 @@ import { Link, usePage } from '@inertiajs/react';
 import { PageProps } from '@/types';
 import FlashMessages from '@/Components/FlashMessages';
 import { HelpChatbot } from '@/Components/HelpChatbot';
+import TenantSwitcher from '@/Components/TenantSwitcher';
 import {
     LayoutDashboard,
     FileText,
@@ -345,6 +346,9 @@ export default function AdminLayout({
                                 <Bell className="h-5 w-5" />
                                 <span className="absolute top-1.5 right-1.5 h-2.5 w-2.5 rounded-full bg-red-500 border-2 border-white" />
                             </button>
+
+                            {/* Tenant Switcher for Super Admin */}
+                            <TenantSwitcher />
 
                             {/* Divider */}
                             <div className="hidden lg:block h-8 w-px bg-gray-200" />

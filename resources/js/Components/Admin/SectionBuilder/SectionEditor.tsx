@@ -247,27 +247,19 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
     const isHeroSection = section.component_type === 'hero';
     const isServicesGridSection = section.component_type === 'services_grid';
     
-    // Block-based content (generic approach)
-    // Auto-migrate featured_products to products_carousel block for hero sections
-    // Auto-create services_carousel block for services_grid sections
-    const [blocks, setBlocks] = useState<ContentBlock[]>(() => {
-        // Use section.content directly since content state might not be initialized yet
-        const sectionContent = section.content || {};
+    // Helper function to auto-generate blocks from section content
+    const generateAutoBlocks = (sectionContent: Record<string, any>, componentType: string): ContentBlock[] => {
         const existingBlocks = sectionContent.blocks || [];
         const featuredProducts = sectionContent.featured_products || [];
+        const images = sectionContent.images || {};
         
-        console.log('[SectionEditor] Blocks init - sectionContent:', sectionContent);
-        console.log('[SectionEditor] Blocks init - existingBlocks:', existingBlocks);
-        console.log('[SectionEditor] Blocks init - component_type:', section.component_type);
+        let autoBlocks: ContentBlock[] = [...existingBlocks];
         
-        // For hero sections, check if we need to migrate featured_products to a products_carousel block
-        if (section.component_type === 'hero' && featuredProducts.length > 0) {
-            // Check if there's already a products_carousel block
+        // Hero section - products carousel
+        if (componentType === 'hero' && featuredProducts.length > 0) {
             const hasProductsCarousel = existingBlocks.some((b: ContentBlock) => b.type === 'products_carousel');
-            
             if (!hasProductsCarousel) {
-                // Create a products_carousel block from featured_products
-                const productsCarouselBlock: ContentBlock = {
+                autoBlocks.push({
                     id: `block_products_${Date.now()}`,
                     type: 'products_carousel',
                     data: {
@@ -283,68 +275,230 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
                         showProductCard: true,
                     },
                     settings: { visibility: 'visible' },
-                };
-                return [...existingBlocks, productsCarouselBlock];
+                });
             }
         }
-        
-        // For services_grid sections, check if we need to create a services_carousel block
-        if (section.component_type === 'services_grid') {
+        // Services grid - services carousel
+        else if (componentType === 'services_grid') {
             const hasServicesCarousel = existingBlocks.some((b: ContentBlock) => b.type === 'services_carousel');
-            
             if (!hasServicesCarousel) {
-                // Create a services_carousel block - categories will be loaded dynamically
-                const servicesCarouselBlock: ContentBlock = {
+                autoBlocks.push({
                     id: `block_services_${Date.now()}`,
                     type: 'services_carousel',
                     data: {
-                        categories: [], // Will be populated from API
+                        categories: [],
                         showCategoryImages: true,
                         showServicesList: true,
                         columns: 4,
                     },
                     settings: { visibility: 'visible' },
-                };
-                return [...existingBlocks, servicesCarouselBlock];
+                });
+            }
+        }
+        // Team section - team images
+        else if (componentType === 'team' && (images.primary || images.secondary)) {
+            const hasTeamImages = existingBlocks.some((b: ContentBlock) => b.type === 'team_images');
+            if (!hasTeamImages) {
+                autoBlocks.push({
+                    id: `block_team_${Date.now()}`,
+                    type: 'team_images',
+                    data: {
+                        primaryImage: images.primary || '',
+                        primaryAlt: 'Team primary image',
+                        secondaryImage: images.secondary || '',
+                        secondaryAlt: 'Team secondary image',
+                        badgeImage: '',
+                        productImage: '',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Testimonials section
+        else if (componentType === 'testimonials') {
+            const hasTestimonials = existingBlocks.some((b: ContentBlock) => b.type === 'testimonials_carousel');
+            if (!hasTestimonials) {
+                autoBlocks.push({
+                    id: `block_testimonials_${Date.now()}`,
+                    type: 'testimonials_carousel',
+                    data: {
+                        testimonials: [],
+                        autoPlay: true,
+                        interval: 5000,
+                        showDots: true,
+                        showRating: true,
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // FAQ section
+        else if (componentType === 'faq') {
+            const hasFaqList = existingBlocks.some((b: ContentBlock) => b.type === 'faq_list');
+            if (!hasFaqList) {
+                autoBlocks.push({
+                    id: `block_faq_${Date.now()}`,
+                    type: 'faq_list',
+                    data: {
+                        items: [],
+                        preTitle: sectionContent.pre_title || 'GOT QUESTIONS?',
+                        title: sectionContent.title || 'Frequently Asked Questions',
+                        description: sectionContent.description || '',
+                        ctaTitle: sectionContent.cta_title || 'Still have questions?',
+                        ctaDescription: sectionContent.cta_description || '',
+                        ctaText: sectionContent.cta_text || 'Contact Support',
+                        ctaLink: sectionContent.cta_link || '/contact',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Contact section
+        else if (componentType === 'contact') {
+            const hasContactInfo = existingBlocks.some((b: ContentBlock) => b.type === 'contact_info');
+            if (!hasContactInfo) {
+                autoBlocks.push({
+                    id: `block_contact_${Date.now()}`,
+                    type: 'contact_info',
+                    data: {
+                        preTitle: sectionContent.pre_title || 'GET IN TOUCH',
+                        title: sectionContent.title || 'Contact Us',
+                        description: sectionContent.description || '',
+                        phone: sectionContent.phone || '',
+                        phoneHours: sectionContent.phone_hours || '',
+                        email: sectionContent.email || '',
+                        emailResponse: sectionContent.email_response || '',
+                        hours: sectionContent.hours || '',
+                        hoursDescription: sectionContent.hours_description || '',
+                        image: sectionContent.image || '',
+                        imageTitle: sectionContent.image_title || '',
+                        imageSubtitle: sectionContent.image_subtitle || '',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Contact Hero section
+        else if (componentType === 'contact_hero') {
+            const hasContactHero = existingBlocks.some((b: ContentBlock) => b.type === 'contact_hero');
+            if (!hasContactHero) {
+                autoBlocks.push({
+                    id: `block_contact_hero_${Date.now()}`,
+                    type: 'contact_hero',
+                    data: {
+                        preTitle: sectionContent.pre_title || 'CONTACT US',
+                        title: sectionContent.title || 'Get In Touch',
+                        description: sectionContent.description || '',
+                        backgroundImage: sectionContent.background_image || '',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Contact Form section
+        else if (componentType === 'contact_form') {
+            const hasContactForm = existingBlocks.some((b: ContentBlock) => b.type === 'contact_form');
+            if (!hasContactForm) {
+                autoBlocks.push({
+                    id: `block_contact_form_${Date.now()}`,
+                    type: 'contact_form',
+                    data: {
+                        title: sectionContent.title || 'Send Us a Message',
+                        phone: sectionContent.phone || '',
+                        email: sectionContent.email || '',
+                        address: sectionContent.address || '',
+                        formTitle: sectionContent.form_title || 'Contact Form',
+                        submitButtonText: sectionContent.submit_button_text || 'Send Message',
+                        showMap: sectionContent.show_map ?? true,
+                        mapEmbedUrl: sectionContent.map_embed_url || '',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Services Hero section
+        else if (componentType === 'services_hero') {
+            const hasServicesHero = existingBlocks.some((b: ContentBlock) => b.type === 'services_hero');
+            if (!hasServicesHero) {
+                autoBlocks.push({
+                    id: `block_services_hero_${Date.now()}`,
+                    type: 'services_hero',
+                    data: {
+                        preTitle: sectionContent.pre_title || 'OUR SERVICES',
+                        title: sectionContent.title || 'What We Offer',
+                        description: sectionContent.description || '',
+                        backgroundImage: sectionContent.background_image || '',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Services List section
+        else if (componentType === 'services_list') {
+            const hasServicesList = existingBlocks.some((b: ContentBlock) => b.type === 'services_categories');
+            if (!hasServicesList) {
+                autoBlocks.push({
+                    id: `block_services_list_${Date.now()}`,
+                    type: 'services_categories',
+                    data: {
+                        title: sectionContent.title || 'Our Services',
+                        description: sectionContent.description || '',
+                        categories: [],
+                        showImages: true,
+                        columns: 3,
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Legal Hero section (Privacy Policy, Terms, etc.)
+        else if (componentType === 'legal_hero') {
+            const hasLegalHero = existingBlocks.some((b: ContentBlock) => b.type === 'legal_hero');
+            if (!hasLegalHero) {
+                autoBlocks.push({
+                    id: `block_legal_hero_${Date.now()}`,
+                    type: 'legal_hero',
+                    data: {
+                        preTitle: sectionContent.pre_title || 'LEGAL',
+                        title: sectionContent.title || 'Privacy Policy',
+                        description: sectionContent.description || '',
+                        lastUpdated: sectionContent.last_updated || '',
+                    },
+                    settings: { visibility: 'visible' },
+                });
+            }
+        }
+        // Legal Content section
+        else if (componentType === 'legal_content') {
+            const hasLegalContent = existingBlocks.some((b: ContentBlock) => b.type === 'legal_content');
+            if (!hasLegalContent) {
+                const sections = sectionContent.sections || [];
+                autoBlocks.push({
+                    id: `block_legal_content_${Date.now()}`,
+                    type: 'legal_content',
+                    data: {
+                        sections: sections.map((s: any, idx: number) => ({
+                            id: `section_${idx}_${Date.now()}`,
+                            title: s.title || '',
+                            content: s.content || '',
+                        })),
+                    },
+                    settings: { visibility: 'visible' },
+                });
             }
         }
         
-        return existingBlocks;
-    });
+        return autoBlocks;
+    };
     
-    // Helper function to create products carousel block from featured_products
-    const createProductsCarouselBlock = (featuredProducts: any[]): ContentBlock => ({
-        id: `block_products_${Date.now()}`,
-        type: 'products_carousel',
-        data: {
-            products: featuredProducts.map((p: any) => ({
-                name: p.name || '',
-                slug: p.slug || '',
-                description: p.description || '',
-                image: p.image || '',
-            })),
-            autoPlay: true,
-            interval: 4000,
-            showVialImage: true,
-            showProductCard: true,
-        },
-        settings: { visibility: 'visible' },
-    });
-    
-    // Effect to sync blocks when section changes (for re-opening editor)
-    useEffect(() => {
+    // Block-based content (generic approach)
+    // Auto-migrate content to appropriate blocks for each section type
+    const [blocks, setBlocks] = useState<ContentBlock[]>(() => {
         const sectionContent = section.content || {};
-        const existingBlocks = sectionContent.blocks || [];
-        const featuredProducts = sectionContent.featured_products || [];
-        
-        if (section.component_type === 'hero' && featuredProducts.length > 0) {
-            const hasProductsCarousel = existingBlocks.some((b: ContentBlock) => b.type === 'products_carousel');
-            if (!hasProductsCarousel) {
-                const productsCarouselBlock = createProductsCarouselBlock(featuredProducts);
-                setBlocks([...existingBlocks, productsCarouselBlock]);
-            }
-        }
-    }, [section.id]); // Re-run when section ID changes
+        console.log('[SectionEditor] Blocks init - sectionContent:', sectionContent);
+        console.log('[SectionEditor] Blocks init - component_type:', section.component_type);
+        return generateAutoBlocks(sectionContent, section.component_type);
+    });
     
     // Services data for services_grid section
     const [categories, setCategories] = useState<any[]>([]);
@@ -355,15 +509,110 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
     const serviceFileInputRef = useRef<HTMLInputElement>(null);
     const [uploadingServiceId, setUploadingServiceId] = useState<number | null>(null);
 
-    // Load categories with services for services_grid section
+    // Load categories with services for services_grid and services_list sections
     const loadCategories = async () => {
-        if (!isServicesGridSection) return;
+        if (!isServicesGridSection && section.component_type !== 'services_list') return;
         setLoadingCategories(true);
         try {
             const response = await fetch('/admin/api/categories-with-services');
             if (response.ok) {
                 const data = await response.json();
-                setCategories(data.data || data || []);
+                const loadedCategories = data.data || data || [];
+                setCategories(loadedCategories);
+                
+                // Update blocks with loaded categories data
+                if (loadedCategories.length > 0) {
+                    setBlocks(prevBlocks => {
+                        // Check if services_carousel or services_categories block exists
+                        const hasServicesCarousel = prevBlocks.some(b => b.type === 'services_carousel');
+                        const hasServicesCategories = prevBlocks.some(b => b.type === 'services_categories');
+                        
+                        if (hasServicesCarousel) {
+                            // Update existing block with categories
+                            return prevBlocks.map(block => {
+                                if (block.type === 'services_carousel') {
+                                    return {
+                                        ...block,
+                                        data: {
+                                            ...block.data,
+                                            categories: loadedCategories.map((cat: any) => ({
+                                                id: cat.id,
+                                                name: cat.name,
+                                                slug: cat.slug,
+                                                description: cat.description,
+                                                image: cat.image,
+                                                services: (cat.services || []).map((s: any) => ({
+                                                    id: s.id,
+                                                    name: s.name,
+                                                    slug: s.slug,
+                                                    description: s.description,
+                                                    image: s.image,
+                                                    pricing: s.pricing,
+                                                })),
+                                            })),
+                                        },
+                                    };
+                                }
+                                return block;
+                            });
+                        } else if (hasServicesCategories) {
+                            // Update services_categories block
+                            return prevBlocks.map(block => {
+                                if (block.type === 'services_categories') {
+                                    return {
+                                        ...block,
+                                        data: {
+                                            ...block.data,
+                                            categories: loadedCategories.map((cat: any) => ({
+                                                id: cat.id,
+                                                name: cat.name,
+                                                slug: cat.slug,
+                                                description: cat.description,
+                                                image: cat.image,
+                                                services: (cat.services || []).map((s: any) => ({
+                                                    id: s.id,
+                                                    name: s.name,
+                                                    slug: s.slug,
+                                                    description: s.description,
+                                                    image: s.image,
+                                                    pricing: s.pricing,
+                                                })),
+                                            })),
+                                        },
+                                    };
+                                }
+                                return block;
+                            });
+                        } else {
+                            // Create new services_carousel block
+                            return [...prevBlocks, {
+                                id: `block_services_${Date.now()}`,
+                                type: 'services_carousel',
+                                data: {
+                                    categories: loadedCategories.map((cat: any) => ({
+                                        id: cat.id,
+                                        name: cat.name,
+                                        slug: cat.slug,
+                                        description: cat.description,
+                                        image: cat.image,
+                                        services: (cat.services || []).map((s: any) => ({
+                                            id: s.id,
+                                            name: s.name,
+                                            slug: s.slug,
+                                            description: s.description,
+                                            image: s.image,
+                                            pricing: s.pricing,
+                                        })),
+                                    })),
+                                    showCategoryImages: true,
+                                    showServicesList: true,
+                                    columns: 4,
+                                },
+                                settings: { visibility: 'visible' },
+                            }];
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error('Failed to load categories:', error);
@@ -376,8 +625,13 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
         console.log('[SectionEditor] Section prop changed:', section.id, section.content);
         setContent(section.content || {});
         setStyles(section.styles || {});
-        setBlocks(section.content?.blocks || []);
-        if (section.component_type === 'services_grid') {
+        
+        // Re-initialize blocks using shared auto-migration function
+        const sectionContent = section.content || {};
+        setBlocks(generateAutoBlocks(sectionContent, section.component_type));
+        
+        // Load categories for services_grid or services_list section
+        if (section.component_type === 'services_grid' || section.component_type === 'services_list') {
             loadCategories();
         }
     }, [section.id]);

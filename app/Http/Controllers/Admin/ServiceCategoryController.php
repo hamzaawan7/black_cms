@@ -104,7 +104,7 @@ class ServiceCategoryController extends Controller
     public function getCategoriesWithServices(): JsonResponse
     {
         $categories = ServiceCategory::with(['services' => function($query) {
-            $query->where('is_active', true)
+            $query->where('is_published', true)
                   ->orderBy('order')
                   ->select('id', 'category_id', 'name', 'slug', 'description', 'headline', 'pricing', 'image', 'is_popular', 'is_published');
         }])

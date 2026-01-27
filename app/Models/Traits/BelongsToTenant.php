@@ -16,18 +16,7 @@ trait BelongsToTenant
         // Automatically set tenant_id when creating a new record
         static::creating(function ($model) {
             if (!$model->tenant_id) {
-                // Try to get tenant from authenticated user
-                if (auth()->check() && auth()->user()->tenant_id) {
-                    $model->tenant_id = auth()->user()->tenant_id;
-                }
-                // Try to get tenant from request attributes (set by TenantMiddleware)
-                elseif (request()->attributes->has('tenant_id')) {
-                    $model->tenant_id = request()->attributes->get('tenant_id');
-                }
-                // Try to get from app container
-                elseif (app()->bound('current_tenant')) {
-                    $model->tenant_id = app('current_tenant')->id;
-                }
+                $model->tenant_id = static::getCurrentTenantId();
             }
         });
 
@@ -43,20 +32,31 @@ trait BelongsToTenant
 
     /**
      * Get the current tenant ID from various sources.
+     * Priority: Session (super_admin) > User > Request > Container
      */
     protected static function getCurrentTenantId(): ?int
     {
-        // From authenticated user
-        if (auth()->check() && auth()->user()->tenant_id) {
-            return auth()->user()->tenant_id;
+        // Priority 1: Super admin's active tenant from session
+        if (auth()->check()) {
+            $user = auth()->user();
+            
+            // Super admin can switch tenants via session
+            if ($user->role === 'super_admin' && session()->has('active_tenant_id')) {
+                return (int) session('active_tenant_id');
+            }
+            
+            // Regular users use their own tenant_id
+            if ($user->tenant_id) {
+                return $user->tenant_id;
+            }
         }
 
-        // From request attributes (set by TenantMiddleware for API)
+        // Priority 2: From request attributes (set by TenantMiddleware for API)
         if (request()->attributes->has('tenant_id')) {
             return request()->attributes->get('tenant_id');
         }
 
-        // From app container
+        // Priority 3: From app container
         if (app()->bound('current_tenant')) {
             return app('current_tenant')->id;
         }
