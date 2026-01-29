@@ -14,13 +14,16 @@ class UpdateServiceCategoryRequest extends BaseFormRequest
      */
     public function rules(): array
     {
-        // Try both route parameter names
-        $categoryId = $this->route('service_category')?->id 
-            ?? $this->route('serviceCategory')?->id 
-            ?? $this->route('category')?->id 
-            ?? $this->route('service_category') 
-            ?? $this->route('serviceCategory')
+        // Get category ID from route - handle both model binding and raw ID
+        $routeCategory = $this->route('service_category') 
+            ?? $this->route('serviceCategory') 
             ?? $this->route('category');
+        
+        // If it's a model, get the ID; if it's already an ID, use it directly
+        $categoryId = is_object($routeCategory) ? $routeCategory->id : $routeCategory;
+        
+        // Get tenant_id for scoped uniqueness
+        $tenantId = session('tenant_id', 1);
 
         return [
             'name' => ['sometimes', 'required', 'string', 'max:255'],
@@ -30,7 +33,9 @@ class UpdateServiceCategoryRequest extends BaseFormRequest
                 'string',
                 'max:255',
                 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/',
-                Rule::unique('service_categories')->ignore($categoryId),
+                Rule::unique('service_categories')
+                    ->where('tenant_id', $tenantId)
+                    ->ignore($categoryId),
             ],
             'description' => ['nullable', 'string', 'max:1000'],
             'icon' => ['nullable', 'string', 'max:255'],
