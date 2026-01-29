@@ -88,14 +88,19 @@ class TenantService
     }
 
     /**
-     * Get a tenant by domain.
+     * Get a tenant by domain (checks primary and additional domains).
      */
     public function getByDomain(string $domain): ?Tenant
     {
-        return Tenant::with('activeTemplate')
-            ->where('domain', $domain)
-            ->where('is_active', true)
-            ->first();
+        // Use Tenant's findByDomain which checks both primary and additional domains
+        $tenant = Tenant::findByDomain($domain);
+        
+        // Only return if active
+        if ($tenant && $tenant->is_active) {
+            return $tenant->load('activeTemplate');
+        }
+        
+        return null;
     }
 
     /**

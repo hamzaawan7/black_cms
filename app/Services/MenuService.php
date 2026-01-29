@@ -169,12 +169,26 @@ class MenuService
     /**
      * Process items array.
      */
-    protected function processItems(array $items): array
+    protected function processItems(array $items, bool $isChildren = false): array
     {
-        return array_map(function ($item, $index) {
+        // Filter out items with empty title/label AND empty url
+        // Be less strict for children items - only filter if completely empty
+        $validItems = array_filter($items, function ($item) use ($isChildren) {
+            $hasTitle = !empty($item['label'] ?? $item['title'] ?? '');
+            $hasUrl = !empty($item['url'] ?? '');
+            
+            // For children, be more lenient - only filter if both are empty
+            if ($isChildren) {
+                return $hasTitle || $hasUrl;
+            }
+            
+            return $hasTitle || $hasUrl;
+        });
+        
+        return array_values(array_map(function ($item, $index) {
             $item['order'] = $item['order'] ?? $index;
             return $this->processItem($item);
-        }, $items, array_keys($items));
+        }, $validItems, array_keys($validItems)));
     }
 
     /**
@@ -182,6 +196,12 @@ class MenuService
      */
     protected function processItem(array $item): array
     {
+        // Get children and ensure they are properly processed
+        $children = [];
+        if (isset($item['children']) && is_array($item['children']) && !empty($item['children'])) {
+            $children = $this->processItems($item['children'], true);
+        }
+        
         return [
             'label' => $item['label'] ?? $item['title'] ?? '',
             'title' => $item['title'] ?? $item['label'] ?? '',
@@ -190,7 +210,8 @@ class MenuService
             'icon' => $item['icon'] ?? null,
             'image' => $item['image'] ?? null,
             'order' => $item['order'] ?? 0,
-            'children' => isset($item['children']) ? $this->processItems($item['children']) : [],
+            'is_active' => $item['is_active'] ?? true,
+            'children' => $children,
         ];
     }
 

@@ -223,10 +223,14 @@ class TenantSeeder extends Seeder
             [
                 'name' => 'Main Navigation',
                 'items' => [
-                    ['label' => 'Home', 'url' => '/', 'order' => 0],
-                    ['label' => 'Services', 'url' => '/services', 'order' => 1],
-                    ['label' => 'About', 'url' => '/about', 'order' => 2],
-                    ['label' => 'Contact', 'url' => '/contact', 'order' => 3],
+                    ['label' => 'Home', 'title' => 'Home', 'url' => '/', 'order' => 0, 'is_active' => true],
+                    ['label' => 'About', 'title' => 'About', 'url' => '/about', 'order' => 1, 'is_active' => true],
+                    ['label' => 'Services', 'title' => 'Services', 'url' => '/services', 'order' => 2, 'is_active' => true],
+                    ['label' => 'Partners', 'title' => 'Partners', 'url' => '#', 'order' => 3, 'is_active' => true, 'children' => [
+                        ['label' => 'Partner Login', 'title' => 'Partner Login', 'url' => '/partners/login', 'is_active' => true],
+                        ['label' => 'Become a Partner', 'title' => 'Become a Partner', 'url' => '/partners/signup', 'is_active' => true],
+                    ]],
+                    ['label' => 'Contact', 'title' => 'Contact', 'url' => '/contact', 'order' => 4, 'is_active' => true],
                 ],
                 'is_active' => true,
             ]

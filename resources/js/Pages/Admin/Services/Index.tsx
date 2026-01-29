@@ -84,11 +84,11 @@ export default function Index({ services, categories = [] }: ServicesIndexProps)
     };
 
     const togglePopular = (service: Service) => {
-        router.patch(`/admin/services/${service.id}`, { is_popular: !service.is_popular }, { preserveScroll: true });
+        router.post(`/admin/services/${service.id}/toggle-popular`, {}, { preserveScroll: true });
     };
 
     const toggleActive = (service: Service) => {
-        router.patch(`/admin/services/${service.id}`, { is_active: !service.is_active }, { preserveScroll: true });
+        router.post(`/admin/services/${service.id}/toggle-published`, {}, { preserveScroll: true });
     };
 
     const toggleCategoryExpanded = (categoryId: number) => {
@@ -121,7 +121,7 @@ export default function Index({ services, categories = [] }: ServicesIndexProps)
                     </div>
                 </div>
                 <div className="flex gap-2">
-                    <Link href="/admin/services/categories" className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Manage Categories</Link>
+                    <Link href="/admin/service-categories" className="inline-flex items-center gap-2 rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">Manage Categories</Link>
                     <Link href="/admin/services/create" className="inline-flex items-center gap-2 rounded-lg bg-[#c9a962] px-4 py-2 text-sm font-semibold text-white hover:bg-[#b08d4a] transition-colors"><Plus className="h-5 w-5" />New Service</Link>
                 </div>
             </div>

@@ -1,6 +1,6 @@
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, router, useForm } from '@inertiajs/react';
-import { Plus, Edit, Trash2, Navigation, X, GripVertical, ExternalLink, FileText, Package, ChevronDown, ChevronUp, Globe, Link2, LayoutGrid, Share2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Navigation, X, GripVertical, ExternalLink, FileText, Package, ChevronDown, ChevronUp, Globe, Link2, LayoutGrid, Share2, Save } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback, memo } from 'react';
 import { useSweetAlert } from '@/hooks/useSweetAlert';
 
@@ -12,6 +12,7 @@ interface MenuItem {
     target?: '_blank' | '_self';
     order: number;
     is_active?: boolean;
+    children?: MenuItem[];
 }
 
 interface Menu {
@@ -210,6 +211,14 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
     const [newItemUrl, setNewItemUrl] = useState('');
     const [newItemTarget, setNewItemTarget] = useState<'_self' | '_blank'>('_self');
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    
+    // Children/Submenu State
+    const [itemChildren, setItemChildren] = useState<MenuItem[]>([]);
+    const [hasSubmenu, setHasSubmenu] = useState(false);
+    const [itemModalTab, setItemModalTab] = useState<'basic' | 'submenu'>('basic');
+    const [editingChildId, setEditingChildId] = useState<string | null>(null);
+    const [childLabel, setChildLabel] = useState('');
+    const [childUrl, setChildUrl] = useState('');
 
     // Filter menus by tab
     const headerMenus = menuList.filter(m => m.location === 'header' || m.location === 'mobile');
@@ -240,6 +249,21 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
         setIsModalOpen(true);
     };
 
+    // Helper function to normalize children items
+    const normalizeChildren = (children: MenuItem[], parentIndex: number, menuId: number): MenuItem[] => {
+        if (!children || !Array.isArray(children)) return [];
+        return children.map((child, childIndex) => ({
+            id: child.id || `child-${menuId}-${parentIndex}-${childIndex}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            label: child.label || child.title || '',
+            title: child.title || child.label || '',
+            url: child.url || '',
+            target: child.target || '_self',
+            order: child.order ?? childIndex,
+            is_active: child.is_active ?? true,
+            children: [], // Children don't have nested children
+        }));
+    };
+
     const openEditModal = (menu: Menu) => {
         setEditingMenu(menu);
         setOpenDropdownId(null);
@@ -250,6 +274,9 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
             url: item.url || '',
             target: item.target || '_self',
             order: item.order ?? index,
+            is_active: item.is_active ?? true,
+            // Preserve and normalize children for dropdown menus
+            children: normalizeChildren(item.children || [], index, menu.id),
         }));
         setMenuItems([...normalizedItems]);
         setData({
@@ -310,6 +337,12 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
         setNewItemUrl('');
         setNewItemTarget('_self');
         setEditingItemId(null);
+        setItemChildren([]);
+        setHasSubmenu(false);
+        setItemModalTab('basic');
+        setEditingChildId(null);
+        setChildLabel('');
+        setChildUrl('');
         setIsAddItemModalOpen(true);
     };
 
@@ -318,6 +351,12 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
         setNewItemUrl(item.url || '');
         setNewItemTarget(item.target || '_self');
         setEditingItemId(item.id);
+        setItemChildren(item.children || []);
+        setHasSubmenu((item.children && item.children.length > 0) || false);
+        setItemModalTab('basic');
+        setEditingChildId(null);
+        setChildLabel('');
+        setChildUrl('');
         setIsAddItemModalOpen(true);
     };
 
@@ -327,12 +366,14 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
             return;
         }
 
+        const childrenToSave = hasSubmenu ? itemChildren : [];
+
         if (editingItemId) {
             // Update existing item
             setMenuItems(
                 menuItems.map((item) =>
                     item.id === editingItemId 
-                        ? { ...item, label: newItemLabel, url: newItemUrl, target: newItemTarget } 
+                        ? { ...item, label: newItemLabel, url: newItemUrl, target: newItemTarget, children: childrenToSave } 
                         : item
                 )
             );
@@ -347,6 +388,7 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
                     target: newItemTarget,
                     order: menuItems.length,
                     is_active: true,
+                    children: childrenToSave,
                 },
             ]);
         }
@@ -356,12 +398,16 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
         setNewItemUrl('');
         setNewItemTarget('_self');
         setEditingItemId(null);
+        setItemChildren([]);
+        setHasSubmenu(false);
     };
 
     const updateMenuItem = (id: string, field: keyof MenuItem, value: string | number) => {
         setMenuItems(
             menuItems.map((item) =>
-                item.id === id ? { ...item, [field]: value } : item
+                item.id === id 
+                    ? { ...item, [field]: value, children: item.children || [] } 
+                    : { ...item, children: item.children || [] }
             )
         );
     };
@@ -373,7 +419,13 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
     const toggleMenuItemActive = (id: string) => {
         setMenuItems(
             menuItems.map((item) =>
-                item.id === id ? { ...item, is_active: !(item.is_active ?? true) } : item
+                item.id === id 
+                    ? { 
+                        ...item, 
+                        is_active: !(item.is_active ?? true),
+                        children: item.children || []
+                    } 
+                    : { ...item, children: item.children || [] }
             )
         );
     };
@@ -382,8 +434,11 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
         if (index === 0) return;
         const newItems = [...menuItems];
         [newItems[index - 1], newItems[index]] = [newItems[index], newItems[index - 1]];
-        // Update order
-        newItems.forEach((item, i) => item.order = i);
+        // Update order and preserve children
+        newItems.forEach((item, i) => {
+            item.order = i;
+            item.children = item.children || [];
+        });
         setMenuItems(newItems);
     };
 
@@ -391,8 +446,11 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
         if (index === menuItems.length - 1) return;
         const newItems = [...menuItems];
         [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
-        // Update order
-        newItems.forEach((item, i) => item.order = i);
+        // Update order and preserve children
+        newItems.forEach((item, i) => {
+            item.order = i;
+            item.children = item.children || [];
+        });
         setMenuItems(newItems);
     };
 
@@ -832,6 +890,12 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
                                                             {item.is_active === false && (
                                                                 <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded">Hidden</span>
                                                             )}
+                                                            {item.children && item.children.length > 0 && (
+                                                                <span className="text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded flex items-center gap-1">
+                                                                    <ChevronDown className="h-2.5 w-2.5" />
+                                                                    {item.children.length} submenu
+                                                                </span>
+                                                            )}
                                                         </div>
                                                         <span className="text-xs text-gray-400 font-mono truncate block">
                                                             {item.url || 'No URL'}
@@ -953,106 +1017,305 @@ export default function Index({ menus, linkOptions }: MenusIndexProps) {
                             </div>
                         </div>
 
-                        {/* Body */}
-                        <div className="p-6 space-y-5">
-                            {/* Label */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Label <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    value={newItemLabel}
-                                    onChange={(e) => setNewItemLabel(e.target.value)}
-                                    className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:border-[#c9a962] focus:outline-none focus:ring-2 focus:ring-[#c9a962]/20 transition-all"
-                                    placeholder="e.g., About Us"
-                                    autoFocus
-                                />
+                        {/* Tabs */}
+                        <div className="px-6 border-b border-gray-100">
+                            <div className="flex gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => setItemModalTab('basic')}
+                                    className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
+                                        itemModalTab === 'basic'
+                                            ? 'border-[#c9a962] text-[#c9a962]'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}
+                                >
+                                    Basic Info
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setItemModalTab('submenu')}
+                                    className={`px-4 py-3 text-sm font-semibold border-b-2 transition-colors flex items-center gap-2 ${
+                                        itemModalTab === 'submenu'
+                                            ? 'border-[#c9a962] text-[#c9a962]'
+                                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                                    }`}
+                                >
+                                    Submenu
+                                    {itemChildren.length > 0 && (
+                                        <span className="px-1.5 py-0.5 text-[10px] bg-blue-100 text-blue-600 rounded-full">
+                                            {itemChildren.length}
+                                        </span>
+                                    )}
+                                </button>
                             </div>
+                        </div>
 
-                            {/* URL */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    URL / Link <span className="text-red-500">*</span>
-                                </label>
-                                <div className="relative">
-                                    <input
-                                        type="text"
-                                        value={newItemUrl}
-                                        onChange={(e) => setNewItemUrl(e.target.value)}
-                                        className="w-full h-12 rounded-xl border border-gray-200 px-4 pr-10 text-sm font-mono focus:border-[#c9a962] focus:outline-none focus:ring-2 focus:ring-[#c9a962]/20 transition-all"
-                                        placeholder="/about or https://..."
-                                    />
-                                    <Link2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                </div>
-                                
-                                {/* Quick Links */}
-                                {linkOptions && (linkOptions.pages?.length > 0 || linkOptions.services?.length > 0) && (
-                                    <div className="mt-3">
-                                        <p className="text-xs font-medium text-gray-500 mb-2">Quick select:</p>
-                                        <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-                                            {linkOptions.pages?.map((link, i) => (
-                                                <button
-                                                    key={`page-${i}`}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setNewItemUrl(link.url);
-                                                        if (!newItemLabel) setNewItemLabel(link.label);
-                                                    }}
-                                                    className="px-2.5 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-[#c9a962]/10 hover:text-[#c9a962] transition-colors"
-                                                >
-                                                    {link.label}
-                                                </button>
-                                            ))}
-                                            {linkOptions.services?.map((link, i) => (
-                                                <button
-                                                    key={`service-${i}`}
-                                                    type="button"
-                                                    onClick={() => {
-                                                        setNewItemUrl(link.url);
-                                                        if (!newItemLabel) setNewItemLabel(link.label);
-                                                    }}
-                                                    className="px-2.5 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
-                                                >
-                                                    {link.label}
-                                                </button>
-                                            ))}
+                        {/* Body */}
+                        <div className="p-6 space-y-5 max-h-[400px] overflow-y-auto">
+                            {/* Basic Info Tab */}
+                            {itemModalTab === 'basic' && (
+                                <>
+                                    {/* Label */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Label <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={newItemLabel}
+                                            onChange={(e) => setNewItemLabel(e.target.value)}
+                                            className="w-full h-12 rounded-xl border border-gray-200 px-4 text-sm focus:border-[#c9a962] focus:outline-none focus:ring-2 focus:ring-[#c9a962]/20 transition-all"
+                                            placeholder="e.g., About Us"
+                                            autoFocus
+                                        />
+                                    </div>
+
+                                    {/* URL */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            URL / Link <span className="text-red-500">*</span>
+                                        </label>
+                                        <div className="relative">
+                                            <input
+                                                type="text"
+                                                value={newItemUrl}
+                                                onChange={(e) => setNewItemUrl(e.target.value)}
+                                                className="w-full h-12 rounded-xl border border-gray-200 px-4 pr-10 text-sm font-mono focus:border-[#c9a962] focus:outline-none focus:ring-2 focus:ring-[#c9a962]/20 transition-all"
+                                                placeholder="/about or https://..."
+                                            />
+                                            <Link2 className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                                        </div>
+                                        
+                                        {/* Quick Links */}
+                                        {linkOptions && (linkOptions.pages?.length > 0 || linkOptions.services?.length > 0) && (
+                                            <div className="mt-3">
+                                                <p className="text-xs font-medium text-gray-500 mb-2">Quick select:</p>
+                                                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                                                    {linkOptions.pages?.map((link, i) => (
+                                                        <button
+                                                            key={`page-${i}`}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setNewItemUrl(link.url);
+                                                                if (!newItemLabel) setNewItemLabel(link.label);
+                                                            }}
+                                                            className="px-2.5 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-lg hover:bg-[#c9a962]/10 hover:text-[#c9a962] transition-colors"
+                                                        >
+                                                            {link.label}
+                                                        </button>
+                                                    ))}
+                                                    {linkOptions.services?.map((link, i) => (
+                                                        <button
+                                                            key={`service-${i}`}
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setNewItemUrl(link.url);
+                                                                if (!newItemLabel) setNewItemLabel(link.label);
+                                                            }}
+                                                            className="px-2.5 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                        >
+                                                            {link.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Target */}
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                                            Open In
+                                        </label>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewItemTarget('_self')}
+                                                className={`h-12 rounded-xl border-2 text-sm font-medium transition-all ${
+                                                    newItemTarget === '_self'
+                                                        ? 'border-[#c9a962] bg-[#c9a962]/5 text-[#c9a962]'
+                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                                }`}
+                                            >
+                                                Same Tab
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setNewItemTarget('_blank')}
+                                                className={`h-12 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
+                                                    newItemTarget === '_blank'
+                                                        ? 'border-[#c9a962] bg-[#c9a962]/5 text-[#c9a962]'
+                                                        : 'border-gray-200 text-gray-600 hover:border-gray-300'
+                                                }`}
+                                            >
+                                                New Tab
+                                                <ExternalLink className="h-3.5 w-3.5" />
+                                            </button>
                                         </div>
                                     </div>
-                                )}
-                            </div>
+                                </>
+                            )}
 
-                            {/* Target */}
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Open In
-                                </label>
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => setNewItemTarget('_self')}
-                                        className={`h-12 rounded-xl border-2 text-sm font-medium transition-all ${
-                                            newItemTarget === '_self'
-                                                ? 'border-[#c9a962] bg-[#c9a962]/5 text-[#c9a962]'
-                                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                        }`}
-                                    >
-                                        Same Tab
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setNewItemTarget('_blank')}
-                                        className={`h-12 rounded-xl border-2 text-sm font-medium transition-all flex items-center justify-center gap-2 ${
-                                            newItemTarget === '_blank'
-                                                ? 'border-[#c9a962] bg-[#c9a962]/5 text-[#c9a962]'
-                                                : 'border-gray-200 text-gray-600 hover:border-gray-300'
-                                        }`}
-                                    >
-                                        New Tab
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                    </button>
+                            {/* Submenu Tab */}
+                            {itemModalTab === 'submenu' && (
+                                <div className="space-y-4">
+                                    {/* Info */}
+                                    <div className="p-3 bg-blue-50 rounded-xl">
+                                        <p className="text-xs text-blue-700">
+                                            Add dropdown items that will appear when hovering over this menu item.
+                                        </p>
+                                    </div>
+
+                                    {/* List of children */}
+                                    {itemChildren.length > 0 ? (
+                                        <div className="space-y-2">
+                                            <div className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                                Submenu Items ({itemChildren.length})
+                                            </div>
+                                            <div className="space-y-2">
+                                                {itemChildren.map((child, index) => (
+                                                    <div
+                                                        key={child.id}
+                                                        className="flex items-center gap-2 p-3 bg-gray-50 rounded-xl group hover:bg-gray-100 transition-colors"
+                                                    >
+                                                        <div className="w-6 h-6 rounded-lg bg-[#c9a962]/10 flex items-center justify-center text-xs font-bold text-[#c9a962]">
+                                                            {index + 1}
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-sm font-medium text-gray-900 truncate">
+                                                                {child.label}
+                                                            </div>
+                                                            <div className="text-xs text-gray-500 truncate font-mono">
+                                                                {child.url}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setEditingChildId(child.id);
+                                                                    setChildLabel(child.label || '');
+                                                                    setChildUrl(child.url || '');
+                                                                }}
+                                                                className="p-2 text-gray-400 hover:text-[#c9a962] hover:bg-[#c9a962]/10 rounded-lg transition-all"
+                                                            >
+                                                                <Edit className="h-4 w-4" />
+                                                            </button>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setItemChildren(itemChildren.filter((_, i) => i !== index));
+                                                                }}
+                                                                className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                                                            >
+                                                                <Trash2 className="h-4 w-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-center py-6 bg-gray-50 rounded-xl">
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-2">
+                                                <Navigation className="h-5 w-5 text-gray-400" />
+                                            </div>
+                                            <p className="text-sm text-gray-500">No submenu items yet</p>
+                                        </div>
+                                    )}
+                                    
+                                    {/* Add/Edit child form */}
+                                    <div className={`p-4 border-2 rounded-xl ${editingChildId ? 'border-[#c9a962] bg-[#c9a962]/5' : 'border-dashed border-gray-200 bg-white'}`}>
+                                        <div className="flex items-center justify-between mb-3">
+                                            <div className="text-xs font-semibold text-gray-700">
+                                                {editingChildId ? 'Edit Submenu Item' : 'Add New Submenu Item'}
+                                            </div>
+                                            {editingChildId && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setEditingChildId(null);
+                                                        setChildLabel('');
+                                                        setChildUrl('');
+                                                    }}
+                                                    className="text-xs text-gray-500 hover:text-gray-700"
+                                                >
+                                                    Cancel Edit
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div className="space-y-3">
+                                            <input
+                                                type="text"
+                                                placeholder="Label (e.g., Partner Login)"
+                                                value={childLabel}
+                                                onChange={(e) => setChildLabel(e.target.value)}
+                                                className="w-full h-11 rounded-xl border border-gray-200 px-4 text-sm focus:border-[#c9a962] focus:outline-none focus:ring-2 focus:ring-[#c9a962]/20"
+                                            />
+                                            <input
+                                                type="text"
+                                                placeholder="URL (e.g., /partners/login)"
+                                                value={childUrl}
+                                                onChange={(e) => setChildUrl(e.target.value)}
+                                                className="w-full h-11 rounded-xl border border-gray-200 px-4 text-sm font-mono focus:border-[#c9a962] focus:outline-none focus:ring-2 focus:ring-[#c9a962]/20"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const label = childLabel.trim();
+                                                    const url = childUrl.trim();
+                                                    
+                                                    if (label && url) {
+                                                        if (editingChildId) {
+                                                            // Update existing child
+                                                            setItemChildren(
+                                                                itemChildren.map((child) =>
+                                                                    child.id === editingChildId
+                                                                        ? { ...child, label, url }
+                                                                        : child
+                                                                )
+                                                            );
+                                                            setEditingChildId(null);
+                                                        } else {
+                                                            // Add new child
+                                                            setItemChildren([
+                                                                ...itemChildren,
+                                                                {
+                                                                    id: `child-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                                                                    label,
+                                                                    url,
+                                                                    target: '_self',
+                                                                    order: itemChildren.length,
+                                                                    is_active: true,
+                                                                }
+                                                            ]);
+                                                        }
+                                                        setChildLabel('');
+                                                        setChildUrl('');
+                                                    }
+                                                }}
+                                                className={`w-full h-11 rounded-xl text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                                                    editingChildId 
+                                                        ? 'bg-[#c9a962] text-white hover:bg-[#b08d4a]' 
+                                                        : 'bg-[#c9a962]/10 text-[#c9a962] hover:bg-[#c9a962]/20'
+                                                }`}
+                                            >
+                                                {editingChildId ? (
+                                                    <>
+                                                        <Save className="h-4 w-4" />
+                                                        Update Submenu Item
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Plus className="h-4 w-4" />
+                                                        Add Submenu Item
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
+                                    </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* Footer */}

@@ -22,7 +22,8 @@ class MenuSeeder extends Seeder
                 'name' => 'Main Navigation',
                 'location' => 'header',
                 'items' => [
-                    ['title' => 'About', 'url' => '/about', 'target' => '_self', 'order' => 1],
+                    ['title' => 'Home', 'url' => '/', 'target' => '_self', 'order' => 0, 'is_active' => true],
+                    ['title' => 'About', 'url' => '/about', 'target' => '_self', 'order' => 1, 'is_active' => true],
                     [
                         'title' => 'Services',
                         'url' => '/services',
@@ -43,12 +44,13 @@ class MenuSeeder extends Seeder
                         'url' => '#',
                         'target' => '_self',
                         'order' => 3,
+                        'is_active' => true,
                         'children' => [
-                            ['title' => 'Partner Login', 'url' => '/partners/login'],
-                            ['title' => 'Become a Partner', 'url' => '/partners/signup'],
+                            ['title' => 'Partner Login', 'url' => '/partners/login', 'is_active' => true],
+                            ['title' => 'Become a Partner', 'url' => '/partners/signup', 'is_active' => true],
                         ],
                     ],
-                    ['title' => 'Contact', 'url' => '/contact', 'target' => '_self', 'order' => 4],
+                    ['title' => 'Contact', 'url' => '/contact', 'target' => '_self', 'order' => 4, 'is_active' => true],
                 ],
                 'is_active' => true,
             ]

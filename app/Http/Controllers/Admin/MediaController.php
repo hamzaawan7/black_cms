@@ -41,27 +41,44 @@ class MediaController extends Controller
      */
     public function store(StoreMediaRequest $request): RedirectResponse|JsonResponse
     {
-        if ($request->hasFile('file')) {
-            $media = $this->mediaService->upload(
-                $request->file('file'),
-                $request->only(['name', 'alt_text', 'caption', 'folder', 'metadata'])
-            );
-        } elseif ($request->filled('url')) {
-            $media = $this->mediaService->createFromUrl(
-                $request->url,
-                $request->only(['name', 'alt_text', 'caption', 'type', 'folder', 'metadata'])
-            );
-        }
+        try {
+            if ($request->hasFile('file')) {
+                $media = $this->mediaService->upload(
+                    $request->file('file'),
+                    $request->only(['name', 'alt_text', 'caption', 'folder', 'metadata'])
+                );
+            } elseif ($request->filled('url')) {
+                $media = $this->mediaService->createFromUrl(
+                    $request->url,
+                    $request->only(['name', 'alt_text', 'caption', 'type', 'folder', 'metadata'])
+                );
+            }
 
-        if ($request->wantsJson()) {
-            return response()->json([
-                'success' => true,
-                'message' => 'Media uploaded successfully.',
-                'data' => new MediaResource($media),
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Media uploaded successfully.',
+                    'data' => new MediaResource($media),
+                ]);
+            }
+
+            return back()->with('success', 'Media uploaded successfully.');
+        } catch (\Exception $e) {
+            \Log::error('Media upload failed: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
             ]);
+            
+            if ($request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Upload failed: ' . $e->getMessage(),
+                ], 500);
+            }
+            
+            return back()->with('error', 'Upload failed: ' . $e->getMessage());
         }
-
-        return back()->with('success', 'Media uploaded successfully.');
     }
 
     /**

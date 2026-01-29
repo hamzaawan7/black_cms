@@ -47,7 +47,7 @@ class ServiceService
      */
     public function getById(int $id): ?Model
     {
-        return $this->serviceRepository->findById($id, ['*'], ['category', 'testimonials']);
+        return $this->serviceRepository->findById($id, ['*'], ['category']);
     }
 
     /**
@@ -55,7 +55,7 @@ class ServiceService
      */
     public function getBySlug(string $slug): ?Model
     {
-        return $this->serviceRepository->findBySlug($slug, ['*'], ['category', 'testimonials']);
+        return $this->serviceRepository->findBySlug($slug, ['*'], ['category']);
     }
 
     /**

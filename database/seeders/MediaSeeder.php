@@ -21,8 +21,8 @@ class MediaSeeder extends Seeder
     {
         $tenantId = 1;
         
-        // Source directory - adjust if needed
-        $this->sourceDir = base_path('../hyve-wellness-new/public/images');
+        // Source directory - from the frontend project
+        $this->sourceDir = base_path('../black_hyverx/public/images');
         
         // Ensure the storage directory exists
         Storage::disk('public')->makeDirectory('media');

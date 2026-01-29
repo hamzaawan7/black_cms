@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Save, Type, Image as ImageIcon, Link as LinkIcon, ToggleLeft, List, Palette, Hash, LayoutTemplate, Plus, Trash2, ChevronUp, ChevronDown, Upload, Package, Grid3X3, Folder, ExternalLink, RefreshCw, Blocks, Phone, Mail, Clock, MapPin, Calendar, MessageSquare, Copy } from 'lucide-react';
+import { X, Save, Type, Image as ImageIcon, Link as LinkIcon, ToggleLeft, List, Palette, Hash, LayoutTemplate, Plus, Trash2, ChevronUp, ChevronDown, Upload, Package, Grid3X3, Folder, ExternalLink, RefreshCw, Blocks, Phone, Mail, Clock, MapPin, Calendar, MessageSquare, Copy, Eye, EyeOff, Maximize2, Minimize2 } from 'lucide-react';
 import type { Section, ComponentType } from './index';
 import BlockEditor from '../BlockEditor';
 import { ContentBlock } from '../BlockEditor/types';
+import SectionPreview from './SectionPreview';
 
 // Block types that have custom inline editors (no Quick Edit fields, use custom render)
 const CUSTOM_BLOCK_TYPES = [
@@ -240,13 +241,22 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
         console.log('[SectionEditor] Initial styles:', initialStyles);
         return initialStyles;
     });
-    // Tabs: content, blocks (new generic), styles
-    const [activeTab, setActiveTab] = useState<'content' | 'blocks' | 'styles'>('content');
+    // Tabs: content, blocks (new generic), styles, preview
+    const [activeTab, setActiveTab] = useState<'content' | 'blocks' | 'styles' | 'preview'>('content');
+    // Preview panel state
+    const [showPreview, setShowPreview] = useState(false);
+    const [previewFullscreen, setPreviewFullscreen] = useState(false);
     
     // Check if this is a hero section or services_grid section
     const isHeroSection = section.component_type === 'hero';
     const isServicesGridSection = section.component_type === 'services_grid';
     
+    // Create a live preview section object with current edits
+    const previewSection: Section = {
+        ...section,
+        content,
+        styles,
+    };
     // Helper function to auto-generate blocks from section content
     const generateAutoBlocks = (sectionContent: Record<string, any>, componentType: string): ContentBlock[] => {
         const existingBlocks = sectionContent.blocks || [];
@@ -1345,7 +1355,9 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
                 className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
                 onClick={onClose}
             />
-            <div className="relative bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className={`relative bg-white rounded-2xl shadow-2xl w-full max-h-[90vh] overflow-hidden flex flex-col transition-all duration-300 ${
+                showPreview ? 'max-w-6xl' : 'max-w-2xl'
+            }`}>
                 {/* Modal Header - Matching Menu Modal Design */}
                 <div className="relative bg-gradient-to-r from-[#1a1a2e] via-[#16213e] to-[#0f3460] px-8 py-6">
                     <div className="absolute inset-0 opacity-10">
@@ -1366,12 +1378,28 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
                                 </p>
                             </div>
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
-                        >
-                            <X className="h-5 w-5 text-white" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            {/* Preview Toggle Button */}
+                            <button
+                                type="button"
+                                onClick={() => setShowPreview(!showPreview)}
+                                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                    showPreview 
+                                        ? 'bg-[#c9a962] text-white' 
+                                        : 'bg-white/10 text-white hover:bg-white/20'
+                                }`}
+                                title={showPreview ? 'Hide Preview' : 'Show Preview'}
+                            >
+                                <Eye className="h-4 w-4" />
+                                {showPreview ? 'Hide Preview' : 'Preview'}
+                            </button>
+                            <button
+                                onClick={onClose}
+                                className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                            >
+                                <X className="h-5 w-5 text-white" />
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1419,37 +1447,51 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
                             <Palette className="h-4 w-4" />
                             Styles
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('preview')}
+                            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${
+                                activeTab === 'preview'
+                                    ? 'border-[#c9a962] text-[#c9a962]'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            }`}
+                        >
+                            <Eye className="h-4 w-4" />
+                            Preview
+                        </button>
                     </div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 overflow-y-auto p-8">
-                    {activeTab === 'content' && (
-                        <div className="space-y-6">
-                            {/* Section Header */}
-                            <div>
-                                <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                                    <span className="w-6 h-6 rounded-lg bg-[#c9a962]/10 flex items-center justify-center">
-                                        <Type className="h-3.5 w-3.5 text-[#c9a962]" />
-                                    </span>
-                                    Section Content
-                                </h4>
-                            </div>
-                            
-                            {/* Custom Block Type Editors - Show redirect to Blocks tab */}
-                            {CUSTOM_BLOCK_TYPES.includes(section.component_type) ? (
-                                <CustomBlockEditor
-                                    componentType={section.component_type}
-                                    content={content}
-                                    onChange={handleContentChange}
-                                    onSwitchToBlocks={() => setActiveTab('blocks')}
-                                />
-                            ) : (
-                                /* Standard Content Fields */
-                                <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
-                                    {Object.entries(fields).map(([fieldName, fieldConfig]) =>
-                                        renderField(fieldName, fieldConfig)
-                                    )}
+                {/* Content Area with Optional Preview Panel */}
+                <div className={`flex-1 overflow-hidden flex ${showPreview ? 'flex-row' : 'flex-col'}`}>
+                    {/* Editor Panel */}
+                    <div className={`overflow-y-auto p-8 ${showPreview ? 'w-1/2 border-r border-gray-200' : 'flex-1'}`}>
+                        {activeTab === 'content' && (
+                            <div className="space-y-6">
+                                {/* Section Header */}
+                                <div>
+                                    <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                                        <span className="w-6 h-6 rounded-lg bg-[#c9a962]/10 flex items-center justify-center">
+                                            <Type className="h-3.5 w-3.5 text-[#c9a962]" />
+                                        </span>
+                                        Section Content
+                                    </h4>
+                                </div>
+                                
+                                {/* Custom Block Type Editors - Show redirect to Blocks tab */}
+                                {CUSTOM_BLOCK_TYPES.includes(section.component_type) ? (
+                                    <CustomBlockEditor
+                                        componentType={section.component_type}
+                                        content={content}
+                                        onChange={handleContentChange}
+                                        onSwitchToBlocks={() => setActiveTab('blocks')}
+                                    />
+                                ) : (
+                                    /* Standard Content Fields */
+                                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-4">
+                                        {Object.entries(fields).map(([fieldName, fieldConfig]) =>
+                                            renderField(fieldName, fieldConfig)
+                                        )}
                                     {Object.keys(fields).length === 0 && (
                                         <div className="text-center py-10 bg-white rounded-xl border-2 border-dashed border-gray-200">
                                             <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
@@ -1777,6 +1819,56 @@ export default function SectionEditor({ section, componentType, onSave, onClose 
                                     </div>
                                 </div>
                             )}
+                        </div>
+                    )}
+
+                    {/* Preview Tab Content */}
+                    {activeTab === 'preview' && (
+                        <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                    <span className="w-6 h-6 rounded-lg bg-[#c9a962]/10 flex items-center justify-center">
+                                        <Eye className="h-3.5 w-3.5 text-[#c9a962]" />
+                                    </span>
+                                    Live Preview
+                                </h4>
+                                <button
+                                    type="button"
+                                    onClick={() => setPreviewFullscreen(!previewFullscreen)}
+                                    className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700"
+                                >
+                                    {previewFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                                    {previewFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+                                </button>
+                            </div>
+                            <div className="bg-gray-100 rounded-xl p-4">
+                                <SectionPreview section={previewSection} />
+                            </div>
+                            <p className="text-xs text-gray-400 text-center">
+                                This is a preview of how the section will appear on the website. Edit content to see live changes.
+                            </p>
+                        </div>
+                    )}
+                    </div>
+
+                    {/* Live Preview Side Panel (when enabled) */}
+                    {showPreview && activeTab !== 'preview' && (
+                        <div className="w-1/2 overflow-y-auto bg-gray-100 p-6">
+                            <div className="sticky top-0 bg-gray-100 pb-4 mb-4 border-b border-gray-200">
+                                <div className="flex items-center justify-between">
+                                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                                        <Eye className="h-4 w-4 text-[#c9a962]" />
+                                        Live Preview
+                                    </h4>
+                                    <span className="text-xs text-gray-400 px-2 py-1 bg-white rounded-full">
+                                        Updates as you type
+                                    </span>
+                                </div>
+                            </div>
+                            <SectionPreview 
+                                section={previewSection} 
+                                className="transform-gpu"
+                            />
                         </div>
                     )}
                 </div>

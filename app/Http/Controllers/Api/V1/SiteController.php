@@ -35,7 +35,10 @@ class SiteController extends BaseApiController
             return $this->notFoundResponse('Site not found or inactive');
         }
 
-        // Get settings
+        // Set tenant_id in request attributes for SettingService
+        request()->attributes->set('tenant_id', $tenantId);
+
+        // Get settings for this specific tenant
         $settings = $this->settingService->getAllAsArray();
 
         return $this->successResponse([

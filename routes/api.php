@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\ContactController;
 use App\Http\Controllers\Api\V1\FaqController;
 use App\Http\Controllers\Api\V1\MenuController;
 use App\Http\Controllers\Api\V1\PageBuilderController;
@@ -48,6 +49,10 @@ Route::prefix('v1')->group(function () {
     // These require X-Tenant-ID header middleware
     // ==========================================
     Route::middleware(['tenant'])->group(function () {
+        
+        // Contact Form & Newsletter (public - no auth required)
+        Route::post('/contact', [ContactController::class, 'submit']);
+        Route::post('/newsletter', [ContactController::class, 'subscribe']);
         
         // Pages
         Route::get('/pages', [PageController::class, 'index']);

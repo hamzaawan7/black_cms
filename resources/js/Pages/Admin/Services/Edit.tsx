@@ -74,8 +74,12 @@ export default function Edit({ service: serviceProp, categories = [] }: EditProp
     const handleSubmit: FormEventHandler = (e) => {
         e.preventDefault();
         put(`/admin/services/${service.id}`, {
-            onSuccess: () => successNotification('Service updated successfully!'),
-            onError: () => errorNotification('Failed to update service'),
+            onSuccess: () => {
+                successNotification('Service updated successfully!');
+            },
+            onError: () => {
+                errorNotification('Failed to update service');
+            },
         });
     };
 

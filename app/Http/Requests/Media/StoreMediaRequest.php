@@ -19,7 +19,7 @@ class StoreMediaRequest extends BaseFormRequest
                 'required_without:url',
                 'file',
                 'max:20480', // 20MB max
-                'mimetypes:image/jpeg,image/png,image/gif,image/webp,image/svg+xml,application/pdf,video/mp4,video/webm,audio/mpeg,audio/mp3',
+                'mimetypes:image/jpeg,image/png,image/gif,image/webp,image/svg+xml,image/x-icon,image/vnd.microsoft.icon,application/pdf,video/mp4,video/webm,audio/mpeg,audio/mp3',
             ],
             'url' => ['required_without:file', 'nullable', 'url', 'max:500'],
             'name' => ['nullable', 'string', 'max:255'],

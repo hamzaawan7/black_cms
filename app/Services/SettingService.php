@@ -46,7 +46,7 @@ class SettingService
             ?? auth()->user()->tenant_id 
             ?? 1;
 
-        return Cache::remember(
+        $settings = Cache::remember(
             $this->cacheKey . '_' . $tenantId,
             3600,
             function () use ($tenantId) {
@@ -55,6 +55,48 @@ class SettingService
                     ->toArray();
             }
         );
+
+        // Fix URLs - replace localhost with actual CMS URL
+        return $this->normalizeUrls($settings);
+    }
+
+    /**
+     * Normalize URLs in settings to use proper CMS base URL.
+     */
+    protected function normalizeUrls(array $settings): array
+    {
+        // Get the CMS base URL - for multi-tenant, we use a fixed CMS URL
+        // In production, this should come from env CMS_URL
+        $cmsBaseUrl = config('app.cms_url') ?: rtrim(config('app.url'), '/');
+        
+        // For local development, if it's localhost, use the actual CMS domain
+        if (str_contains($cmsBaseUrl, 'localhost')) {
+            // Use cms.local for local development
+            $scheme = request()->isSecure() ? 'https' : 'http';
+            $cmsBaseUrl = $scheme . '://cms.local';
+        }
+        
+        // Keys that contain URLs that need normalization
+        $urlKeys = ['site_logo', 'site_favicon', 'og_image', 'default_image'];
+        
+        foreach ($urlKeys as $key) {
+            if (isset($settings[$key]) && !empty($settings[$key])) {
+                $value = $settings[$key];
+                
+                // If it's a full URL with localhost, normalize it
+                if (preg_match('#^https?://localhost(:\d+)?/#', $value)) {
+                    // Convert to relative path first, then to full CMS URL
+                    $relativePath = preg_replace('#^https?://localhost(:\d+)?#', '', $value);
+                    $settings[$key] = $cmsBaseUrl . $relativePath;
+                }
+                // If it's already a relative path, prepend CMS base URL
+                elseif (str_starts_with($value, '/storage/') || str_starts_with($value, '/images/')) {
+                    $settings[$key] = $cmsBaseUrl . $value;
+                }
+            }
+        }
+
+        return $settings;
     }
 
     /**

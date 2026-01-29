@@ -56,8 +56,11 @@ import {
     FileEdit,
     LayoutGrid,
     PhoneCall,
+    Maximize2,
+    MonitorPlay,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import SectionPreview from './SectionPreview';
 import SectionEditor from './SectionEditor';
 
 export interface Section {
@@ -125,6 +128,7 @@ interface SortableSectionItemProps {
     isDeleting: boolean;
     componentTypes: Record<string, ComponentType>;
     onEdit: (section: Section) => void;
+    onPreview: (section: Section) => void;
     onDelete: (id: number) => void;
     onDuplicate: (id: number) => void;
     onMoveUp: (id: number) => void;
@@ -140,6 +144,7 @@ function SortableSectionItem({
     totalSections,
     isDeleting,
     onEdit,
+    onPreview,
     onDelete,
     onDuplicate,
     onMoveUp,
@@ -245,6 +250,16 @@ function SortableSectionItem({
                         {section.is_visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </button>
 
+                    {/* Preview */}
+                    <button
+                        type="button"
+                        onClick={() => onPreview(section)}
+                        className="p-2 rounded-lg text-slate-400 hover:text-purple-500 hover:bg-purple-50 transition-colors"
+                        title="Preview section"
+                    >
+                        <MonitorPlay className="h-4 w-4" />
+                    </button>
+
                     {/* Edit */}
                     <button
                         type="button"
@@ -308,6 +323,7 @@ function SortableSectionItem({
 export default function SectionBuilder({ pageId, sections = [], componentTypes = {} }: SectionBuilderProps) {
     const [localSections, setLocalSections] = useState<Section[]>(sections);
     const [editingSection, setEditingSection] = useState<Section | null>(null);
+    const [previewSection, setPreviewSection] = useState<Section | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isDeleting, setIsDeleting] = useState<number | null>(null);
     const [activeId, setActiveId] = useState<number | null>(null);
@@ -502,6 +518,10 @@ export default function SectionBuilder({ pageId, sections = [], componentTypes =
         });
     };
 
+    const handlePreviewClick = (section: Section) => {
+        setPreviewSection(section);
+    };
+
     const getComponentIcon = (type: string) => {
         const IconComponent = iconMap[type] || LayoutTemplate;
         return <IconComponent className="h-5 w-5" />;
@@ -535,6 +555,7 @@ export default function SectionBuilder({ pageId, sections = [], componentTypes =
                                     isDeleting={isDeleting === section.id}
                                     componentTypes={componentTypes}
                                     onEdit={handleEditClick}
+                                    onPreview={handlePreviewClick}
                                     onDelete={handleDeleteSection}
                                     onDuplicate={handleDuplicateSection}
                                     onMoveUp={handleMoveUp}
@@ -668,6 +689,83 @@ export default function SectionBuilder({ pageId, sections = [], componentTypes =
                     onSave={(updates) => handleUpdateSection(editingSection, updates)}
                     onClose={() => setEditingSection(null)}
                 />
+            )}
+
+            {/* Section Preview Modal */}
+            {previewSection && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div 
+                        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm"
+                        onClick={() => setPreviewSection(null)}
+                    />
+                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+                        {/* Preview Modal Header */}
+                        <div className="relative bg-gradient-to-r from-purple-900 via-purple-800 to-indigo-900 px-8 py-6">
+                            <div className="absolute inset-0 opacity-10">
+                                <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full -translate-y-1/2 translate-x-1/2" />
+                                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/10 rounded-full translate-y-1/2 -translate-x-1/2" />
+                            </div>
+                            <div className="relative flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                                        <Eye className="h-6 w-6 text-white" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xl font-bold text-white">
+                                            Preview: {getComponentName(previewSection.component_type)}
+                                        </h3>
+                                        <p className="text-sm text-white/60">
+                                            See how this section will appear on the website
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setEditingSection(previewSection);
+                                            setPreviewSection(null);
+                                        }}
+                                        className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-medium rounded-lg transition-colors"
+                                    >
+                                        <Pencil className="h-4 w-4" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        onClick={() => setPreviewSection(null)}
+                                        className="w-10 h-10 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                                    >
+                                        <X className="h-5 w-5 text-white" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Preview Content */}
+                        <div className="flex-1 overflow-y-auto bg-gray-100">
+                            <div className="p-6">
+                                <SectionPreview section={previewSection} />
+                            </div>
+                        </div>
+
+                        {/* Preview Footer */}
+                        <div className="flex items-center justify-between border-t border-gray-100 px-8 py-4 bg-gray-50/50">
+                            <p className="text-sm text-gray-500">
+                                <span className="font-medium">Type:</span> {previewSection.component_type} • 
+                                <span className="font-medium ml-2">Order:</span> {previewSection.order} • 
+                                <span className={`ml-2 px-2 py-0.5 rounded-full text-xs ${previewSection.is_visible ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-600'}`}>
+                                    {previewSection.is_visible ? 'Visible' : 'Hidden'}
+                                </span>
+                            </p>
+                            <button
+                                type="button"
+                                onClick={() => setPreviewSection(null)}
+                                className="px-5 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                            >
+                                Close Preview
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );

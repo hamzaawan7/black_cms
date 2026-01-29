@@ -222,7 +222,7 @@ export default function Edit({ page: pageProp, templates = [], componentTypes = 
                             <MediaUploader
                                 label="OG Image"
                                 value={data.og_image}
-                                onChange={(value) => setData('og_image', value as string || '')}
+                                onChange={(value) => { setData('og_image', value as string || ''); }}
                                 accept="image/*"
                                 hint="Social media sharing image"
                             />

@@ -143,12 +143,15 @@ class TenantMiddleware
      */
     protected function findTenantByDomain(string $domain): ?Tenant
     {
-        // Skip localhost and local development domains without explicit mapping
-        $localDomains = ['localhost', '127.0.0.1', '0.0.0.0'];
-        if (in_array($domain, $localDomains)) {
+        // Skip only these specific local domains
+        $skipDomains = ['127.0.0.1', '0.0.0.0'];
+        if (in_array($domain, $skipDomains)) {
             return null; // Let other strategies handle local development
         }
 
+        // For localhost, check if it's in any tenant's additional_domains
+        // This allows localhost to work in development while still checking domains
+        
         // Use Tenant's findByDomain which checks primary and additional domains
         $tenant = Tenant::findByDomain($domain);
         if ($tenant && $tenant->is_active) {

@@ -46,11 +46,21 @@ class StoreMenuRequest extends BaseFormRequest
             'items.*.url' => ['required', 'string', 'max:500'],
             'items.*.target' => ['nullable', Rule::in(['_self', '_blank'])],
             'items.*.icon' => ['nullable', 'string', 'max:100'],
+            'items.*.image' => ['nullable', 'string', 'max:500'],
             'items.*.order' => ['nullable', 'integer', 'min:0'],
+            'items.*.is_active' => ['nullable', 'boolean'],
             'items.*.children' => ['nullable', 'array'],
+            // Children item validation - must include all fields
+            'items.*.children.*.id' => ['nullable', 'string'],
             'items.*.children.*.label' => ['nullable', 'string', 'max:100'],
             'items.*.children.*.title' => ['nullable', 'string', 'max:100'],
-            'items.*.children.*.url' => ['required_with:items.*.children', 'string', 'max:500'],
+            'items.*.children.*.url' => ['nullable', 'string', 'max:500'],
+            'items.*.children.*.target' => ['nullable', Rule::in(['_self', '_blank'])],
+            'items.*.children.*.icon' => ['nullable', 'string', 'max:100'],
+            'items.*.children.*.image' => ['nullable', 'string', 'max:500'],
+            'items.*.children.*.order' => ['nullable', 'integer', 'min:0'],
+            'items.*.children.*.is_active' => ['nullable', 'boolean'],
+            'items.*.children.*.children' => ['nullable', 'array'],
             'is_active' => ['boolean'],
         ];
     }

@@ -329,9 +329,14 @@ class MultiTenantSeeder extends Seeder
                 'name' => 'Main Navigation',
                 'location' => 'header',
                 'items' => json_encode([
-                    ['title' => 'About', 'url' => '/about', 'order' => 1],
-                    ['title' => 'Services', 'url' => '/services', 'order' => 2],
-                    ['title' => 'Contact', 'url' => '/contact', 'order' => 3],
+                    ['title' => 'Home', 'label' => 'Home', 'url' => '/', 'order' => 0, 'is_active' => true],
+                    ['title' => 'About', 'label' => 'About', 'url' => '/about', 'order' => 1, 'is_active' => true],
+                    ['title' => 'Services', 'label' => 'Services', 'url' => '/services', 'order' => 2, 'is_active' => true],
+                    ['title' => 'Partners', 'label' => 'Partners', 'url' => '#', 'order' => 3, 'is_active' => true, 'children' => [
+                        ['title' => 'Partner Login', 'label' => 'Partner Login', 'url' => '/partners/login', 'is_active' => true],
+                        ['title' => 'Become a Partner', 'label' => 'Become a Partner', 'url' => '/partners/signup', 'is_active' => true],
+                    ]],
+                    ['title' => 'Contact', 'label' => 'Contact', 'url' => '/contact', 'order' => 4, 'is_active' => true],
                 ]),
             ]
         );
