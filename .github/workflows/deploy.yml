@@ -87,3 +87,19 @@ jobs:
             **/tests/**
             **/.env.example
             **/phpunit.xml
+
+      - name: Run Migrations & Optimize on Production
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 156.67.67.67
+          username: u938549775
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 65002
+          script: |
+            cd domains/palevioletred-snake-584520.hostingersite.com/public_html
+            php artisan migrate --force
+            php artisan optimize:clear
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            echo "✅ Deployment completed successfully!"
